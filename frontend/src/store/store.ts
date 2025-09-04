@@ -28,8 +28,9 @@ type State = {
   cursors: Array<{
     userId: string;
     username: string;
-    x: number;
-    y: number;
+    x?: number;
+    y?: number;
+    index?: number;
     isTyping: boolean;
   }>;
   showCreateModal: boolean;

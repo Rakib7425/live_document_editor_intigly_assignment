@@ -467,27 +467,30 @@ export default function Editor({ docId }: { docId: number }) {
               <div className="absolute inset-0 pointer-events-none z-30">
                 {cursors
                   .filter((c) => c.userId !== socket?.id)
-                  .map((cursor) => (
-                    <div key={cursor.userId} className="absolute">
-                      <div
-                        className="w-0.5 h-6 bg-blue-500 animate-pulse"
-                        style={{
-                          left: `${cursor.x}px`,
-                          top: `${cursor.y}px`,
-                          animation: "blink 1s infinite",
-                        }}
-                      />
-                      <div
-                        className="absolute top-6 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
-                        style={{
-                          left: `${cursor.x}px`,
-                          top: `${cursor.y + 6}px`,
-                        }}
-                      >
-                        {cursor.username}
+                  .map((cursor) => {
+                    if (cursor.x == null || cursor.y == null) return null;
+                    return (
+                      <div key={cursor.userId} className="absolute">
+                        <div
+                          className="w-0.5 h-6 bg-blue-500 animate-pulse"
+                          style={{
+                            left: `${cursor.x}px`,
+                            top: `${cursor.y}px`,
+                            animation: "blink 1s infinite",
+                          }}
+                        />
+                        <div
+                          className="absolute top-6 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                          style={{
+                            left: `${cursor.x}px`,
+                            top: `${cursor.y + 6}px`,
+                          }}
+                        >
+                          {cursor.username}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           </div>
