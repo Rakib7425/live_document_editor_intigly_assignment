@@ -25,6 +25,52 @@ export default function Documents() {
 
   useEffect(() => {
     load();
+
+    // Listen for new documents created by other users
+    const handleNewDocument = (event: CustomEvent) => {
+      const newDoc = event.detail;
+      setDocs((prev) => [newDoc, ...prev]);
+    };
+
+    const handleDocumentUpdate = (event: CustomEvent) => {
+      const { id, title } = event.detail;
+      setDocs((prev) =>
+        prev.map((doc) => (doc.id === id ? { ...doc, title } : doc))
+      );
+    };
+
+    const handleDocumentDelete = (event: CustomEvent) => {
+      const { id } = event.detail;
+      setDocs((prev) => prev.filter((doc) => doc.id !== id));
+    };
+
+    window.addEventListener(
+      "document:created",
+      handleNewDocument as EventListener
+    );
+    window.addEventListener(
+      "document:updated",
+      handleDocumentUpdate as EventListener
+    );
+    window.addEventListener(
+      "document:deleted",
+      handleDocumentDelete as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "document:created",
+        handleNewDocument as EventListener
+      );
+      window.removeEventListener(
+        "document:updated",
+        handleDocumentUpdate as EventListener
+      );
+      window.removeEventListener(
+        "document:deleted",
+        handleDocumentDelete as EventListener
+      );
+    };
   }, []);
 
   useEffect(() => {

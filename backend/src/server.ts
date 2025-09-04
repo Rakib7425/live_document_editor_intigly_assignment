@@ -11,8 +11,9 @@ import { Redis } from "ioredis";
 import {
   addPresence,
   removePresence,
-  setCursor,
   listPresence,
+  setCursor,
+  getCursors,
 } from "./services/presence.js";
 import {
   queueDocumentUpdate,
@@ -37,7 +38,7 @@ app.get("/health", (_req, res) => {
 });
 
 const server = http.createServer(app);
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: { origin: "*" },
 });
 
@@ -61,6 +62,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Add document presence heartbeat
+  socket.on("doc:heartbeat", async ({ docId }: { docId: number }) => {
+    if (socket.data?.username && docId) {
+      await addPresence(docId, socket.id, socket.data.username);
+    }
+  });
+
   socket.on(
     "joinDoc",
     async ({
@@ -77,19 +85,11 @@ io.on("connection", (socket) => {
       socket.join(room);
       await addPresence(docId, socket.id, username);
       const users = await listPresence(docId);
-      const cursors = await (async () => {
-        try {
-          return await import("./services/presence.js").then((m) =>
-            m.getCursors(docId)
-          );
-        } catch {
-          return {};
-        }
-      })();
+      const cursors = await getCursors(docId);
       const snapshot = await getDocumentSnapshot(docId);
       io.to(room).emit("presence:update", { type: "join", users });
-      socket.emit("doc:snapshot", snapshot);
       socket.emit("cursors:init", cursors);
+      socket.emit("doc:snapshot", snapshot);
     }
   );
 
@@ -99,33 +99,45 @@ io.on("connection", (socket) => {
     await removePresence(docId, socket.id);
     const users = await listPresence(docId);
     io.to(room).emit("presence:update", { type: "leave", users });
-    io.to(room).emit("cursor:remove", { userId: socket.id });
+    io.to(room).emit("cursor:remove", socket.id);
   });
-
-  socket.on(
-    "cursor",
-    async ({ docId, cursor }: { docId: number; cursor: any }) => {
-      const room = `doc:${docId}`;
-      await setCursor(docId, socket.id, cursor);
-
-      // Get the username for this socket
-      const presence = await listPresence(docId);
-      const user = presence.find((u) => u.id === socket.id);
-      const username = user?.username || "Unknown";
-
-      socket.to(room).emit("cursor", {
-        userId: socket.id,
-        username,
-        cursor,
-      });
-    }
-  );
 
   socket.on(
     "editor:typing",
     ({ docId, username }: { docId: number; username: string }) => {
       const room = `doc:${docId}`;
       socket.to(room).emit("typing", { kind: "editor", username });
+    }
+  );
+
+  socket.on(
+    "cursor",
+    async ({
+      docId,
+      x,
+      y,
+      isTyping,
+    }: {
+      docId: number;
+      x: number;
+      y: number;
+      isTyping: boolean;
+    }) => {
+      if (!socket.data?.username) return;
+      const room = `doc:${docId}`;
+      await setCursor(docId, socket.id, {
+        x,
+        y,
+        isTyping,
+        username: socket.data.username,
+      });
+      socket.to(room).emit("cursor", {
+        userId: socket.id,
+        username: socket.data.username,
+        x,
+        y,
+        isTyping,
+      });
     }
   );
 
@@ -185,6 +197,10 @@ io.on("connection", (socket) => {
     if (socket.data?.username) {
       await markUserInactive(socket.data.username, socket.id);
     }
+
+    // Clean up presence from all documents this socket was in
+    // We need to find which documents this socket was in and remove presence
+    // For now, we'll rely on the Redis TTL to clean up stale presence
   });
 });
 

@@ -10,6 +10,7 @@ export async function addPresence(
   username: string
 ): Promise<void> {
   await redis.hset(presenceSet(docId), userId, username);
+  await redis.expire(presenceSet(docId), 300); // 5 minutes TTL
 }
 
 export async function removePresence(

@@ -8,6 +8,7 @@ export default function CreateDocumentModal() {
   const [loading, setLoading] = useState(false);
   const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
+  const user = useStore((s) => s.user);
   const navigate = useNavigate();
 
   async function handleCreate(e: React.FormEvent) {
@@ -16,7 +17,7 @@ export default function CreateDocumentModal() {
 
     setLoading(true);
     try {
-      const doc = await DocsAPI.create(title.trim());
+      const doc = await DocsAPI.create(title.trim(), user?.id, user?.username);
       setTitle("");
       setShowCreateModal(false);
       // Navigate to the new document

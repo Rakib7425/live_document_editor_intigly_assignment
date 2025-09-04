@@ -4,20 +4,37 @@ import { db } from "../db/client.js";
 import { documents, chatMessages, users } from "../db/schema.js";
 import { countPresenceForDocs } from "../services/presence.js";
 import { desc, eq, ilike, and } from "drizzle-orm";
+import { io } from "../server.js";
 
 const router = Router();
 
-const createSchema = z.object({ title: z.string().min(1).max(256) });
+const createSchema = z.object({
+  title: z.string().min(1).max(256),
+  ownerId: z.number().optional(),
+  ownerUserName: z.string().optional(),
+});
 
 router.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid title" });
-  const { title } = parsed.data;
+  if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
+  const { title, ownerId, ownerUserName } = parsed.data;
   const inserted = await db
     .insert(documents)
-    .values({ title })
+    .values({ title, ownerId, ownerUserName })
     .returning({ id: documents.id });
-  return res.json({ id: inserted[0].id, title });
+
+  const newDoc = {
+    id: inserted[0].id,
+    title,
+    activeCount: 0,
+    ownerId,
+    ownerUserName,
+  };
+
+  // Broadcast new document to all connected users
+  io.emit("document:created", newDoc);
+
+  return res.json({ id: inserted[0].id, title, ownerId, ownerUserName });
 });
 
 router.get("/", async (req, res) => {
@@ -59,6 +76,52 @@ router.get("/:id", async (req, res) => {
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
   return res.json({ doc, messages: messages.reverse() });
+});
+
+const updateSchema = z.object({
+  title: z.string().min(1).max(256).optional(),
+});
+
+router.put("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
+
+  const { title } = parsed.data;
+  const doc = (
+    await db.select().from(documents).where(eq(documents.id, id))
+  ).at(0);
+  if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  const updated = await db
+    .update(documents)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(documents.id, id))
+    .returning();
+
+  // Broadcast document update
+  io.emit("document:updated", { id, title });
+
+  return res.json(updated[0]);
+});
+
+router.delete("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const doc = (
+    await db.select().from(documents).where(eq(documents.id, id))
+  ).at(0);
+  if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  await db.delete(documents).where(eq(documents.id, id));
+
+  // Broadcast document deletion
+  io.emit("document:deleted", { id });
+
+  return res.json({ success: true });
 });
 
 export default router;

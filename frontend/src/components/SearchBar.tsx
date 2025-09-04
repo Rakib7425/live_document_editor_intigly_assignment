@@ -9,7 +9,7 @@ export default function SearchBar({
 }) {
   return (
     <div className="relative mb-6">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-full h-5 text-gray-400" />
       <input
         type="text"
         placeholder="Search documents..."

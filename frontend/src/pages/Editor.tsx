@@ -20,6 +20,9 @@ export default function Editor({ docId }: { docId: number }) {
   const [content, setContent] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [typing, setTyping] = useState<string | null>(null);
+  const [caretPosition, setCaretPosition] = useState({ x: 0, y: 0 });
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -30,6 +33,7 @@ export default function Editor({ docId }: { docId: number }) {
       const { doc, messages } = await DocsAPI.get(docId);
       setCurrentDoc(doc);
       setContent(doc.content || "");
+      setTitleInput(doc.title || "");
       clearMessages();
       for (const m of messages)
         addMessage({
@@ -55,9 +59,16 @@ export default function Editor({ docId }: { docId: number }) {
       return () => clearTimeout(timer);
     };
     socket.on("typing", onTyping);
+
+    // Set up heartbeat for document presence
+    const heartbeatInterval = setInterval(() => {
+      socket.emit("doc:heartbeat", { docId });
+    }, 30000); // Every 30 seconds
+
     return () => {
       socket.emit("leaveDoc", { docId });
       socket.off("typing", onTyping);
+      clearInterval(heartbeatInterval);
     };
   }, [socket, user, currentDoc, docId]);
 
@@ -65,7 +76,35 @@ export default function Editor({ docId }: { docId: number }) {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Function to calculate exact cursor position
+  // Listen for remote edits
+  useEffect(() => {
+    const handleRemoteEdit = (event: CustomEvent) => {
+      const { userId, delta, version } = event.detail;
+
+      // Don't apply our own edits
+      if (userId === socket?.id) return;
+
+      // For now, we'll use a simple approach: fetch the latest document content
+      // In a more sophisticated implementation, we'd apply the delta
+      if (currentDoc) {
+        DocsAPI.get(currentDoc.id).then(({ doc }) => {
+          setContent(doc.content || "");
+          setCurrentDoc(doc);
+        });
+      }
+    };
+
+    window.addEventListener("document:edit", handleRemoteEdit as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "document:edit",
+        handleRemoteEdit as EventListener
+      );
+    };
+  }, [socket, currentDoc]);
+
+  // Function to calculate exact cursor position for local caret
   function getCursorPosition(
     textarea: HTMLTextAreaElement,
     cursorIndex: number
@@ -92,37 +131,34 @@ export default function Editor({ docId }: { docId: number }) {
 
     // Get text before cursor
     const textBeforeCursor = textarea.value.substring(0, cursorIndex);
-    const textAfterCursor = textarea.value.substring(cursorIndex);
-
-    // Create a span for the cursor position
-    const span = document.createElement("span");
-    span.textContent = "|"; // Cursor character
-
-    // Split text into lines and find the current line
-    const lines = textBeforeCursor.split("\n");
-    const currentLine = lines.length - 1;
-    const currentLineText = lines[currentLine];
 
     // Create the text content up to cursor
-    div.innerHTML =
-      textBeforeCursor.replace(/\n/g, "<br>") +
-      span.outerHTML +
-      textAfterCursor.replace(/\n/g, "<br>");
+    div.innerHTML = textBeforeCursor.replace(/\n/g, "<br>");
 
-    // Get the position of the cursor span
-    const rect = span.getBoundingClientRect();
+    // Get the position of the last character
+    const rect = div.getBoundingClientRect();
     const textareaRect = textarea.getBoundingClientRect();
 
-    const x = rect.left - textareaRect.left;
-    const y = rect.top - textareaRect.top;
+    const x = rect.right - textareaRect.left;
+    const y = rect.bottom - textareaRect.top - parseInt(style.lineHeight);
 
     document.body.removeChild(div);
 
     return { x, y };
   }
 
+  // Function to update caret position
+  function updateCaretPosition() {
+    if (textareaRef.current) {
+      const cursorPosition = textareaRef.current.selectionStart;
+      const { x, y } = getCursorPosition(textareaRef.current, cursorPosition);
+      setCaretPosition({ x, y });
+    }
+  }
+
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value);
+    updateCaretPosition();
     if (socket && currentDoc) {
       socket.emit("edit", {
         docId: currentDoc.id,
@@ -136,25 +172,15 @@ export default function Editor({ docId }: { docId: number }) {
           username: user.username,
         });
 
-      // Track cursor position and emit cursor data
-      const textarea = e.target;
-      const cursorPosition = textarea.selectionStart;
-
-      // Calculate exact cursor position
-      const { x, y } = getCursorPosition(textarea, cursorPosition);
-
+      // Broadcast cursor position
+      const cursorPosition = e.target.selectionStart;
+      const { x, y } = getCursorPosition(e.target, cursorPosition);
       socket.emit("cursor", {
         docId: currentDoc.id,
-        cursor: { x, y, isTyping: true },
+        x,
+        y,
+        isTyping: true,
       });
-
-      // Clear typing status after a delay
-      setTimeout(() => {
-        socket.emit("cursor", {
-          docId: currentDoc.id,
-          cursor: { x, y, isTyping: false },
-        });
-      }, 1000);
     }
   }
 
@@ -202,19 +228,6 @@ export default function Editor({ docId }: { docId: number }) {
     return colors[index];
   }
 
-  function getCursorColor(username: string) {
-    const colors = [
-      "#ef4444", // red-500
-      "#10b981", // green-500
-      "#3b82f6", // blue-500
-      "#8b5cf6", // purple-500
-      "#eab308", // yellow-500
-      "#ec4899", // pink-500
-    ];
-    const index = username.charCodeAt(0) % colors.length;
-    return colors[index];
-  }
-
   function formatDateTime(dateString: string) {
     const date = new Date(dateString);
     return date.toLocaleString([], {
@@ -224,6 +237,51 @@ export default function Editor({ docId }: { docId: number }) {
       month: "long",
       day: "numeric",
     });
+  }
+
+  async function handleTitleSave() {
+    if (!currentDoc || !titleInput.trim()) return;
+    try {
+      await DocsAPI.update(currentDoc.id, titleInput.trim());
+      setCurrentDoc({ ...currentDoc, title: titleInput.trim() });
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error("Failed to update title:", error);
+    }
+  }
+
+  async function handleDeleteDocument() {
+    if (!currentDoc || !user) return;
+
+    // Check if current user is the owner
+    if (
+      currentDoc.ownerId !== user.id &&
+      currentDoc.ownerUserName !== user.username
+    ) {
+      alert("Only the document owner can delete this document");
+      return;
+    }
+
+    if (
+      confirm(
+        "Are you sure you want to delete this document? This action cannot be undone."
+      )
+    ) {
+      try {
+        await DocsAPI.delete(currentDoc.id);
+        navigate("/");
+      } catch (error) {
+        console.error("Failed to delete document:", error);
+      }
+    }
+  }
+
+  function isOwner() {
+    if (!currentDoc || !user) return false;
+    return (
+      currentDoc.ownerId === user.id ||
+      currentDoc.ownerUserName === user.username
+    );
   }
 
   return (
@@ -252,11 +310,88 @@ export default function Editor({ docId }: { docId: number }) {
               <span className="text-sm font-semibold  ">Back to Documents</span>
             </button>
             <div className="h-6 w-px bg-gray-300" />
-            {/* //document title  and last updated date and time*/}
-            <div className="flex flex-col items-start  ">
-              <span className="text-sm font-semibold  ">
-                {currentDoc?.title}
-              </span>
+            {/* Document title and last updated date and time */}
+            <div className="flex flex-col items-start">
+              {isEditingTitle ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") handleTitleSave();
+                      if (e.key === "Escape") {
+                        setIsEditingTitle(false);
+                        setTitleInput(currentDoc?.title || "");
+                      }
+                    }}
+                    className="text-sm font-semibold bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleTitleSave}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingTitle(false);
+                      setTitleInput(currentDoc?.title || "");
+                    }}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsEditingTitle(true)}
+                  className="text-sm font-semibold hover:text-blue-600 transition-colors"
+                  disabled={!isOwner()}
+                >
+                  {currentDoc?.title}
+                  {isOwner() && (
+                    <svg
+                      className="w-3 h-3 inline ml-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              )}
               <span className="text-sm text-gray-500">
                 Last edited: {formatDateTime(currentDoc?.updatedAt || "")}
               </span>
@@ -264,6 +399,27 @@ export default function Editor({ docId }: { docId: number }) {
           </div>
           {/* Document Actions */}
           <div className="flex items-center space-x-3">
+            {isOwner() && (
+              <button
+                onClick={handleDeleteDocument}
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete document"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+            )}
             <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
               <svg
                 className="w-5 h-5"
@@ -324,99 +480,48 @@ export default function Editor({ docId }: { docId: number }) {
                 ref={textareaRef}
                 value={content}
                 onChange={onChange}
-                onMouseMove={(e) => {
-                  if (socket && currentDoc && user) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-
-                    socket.emit("cursor", {
-                      docId: currentDoc.id,
-                      cursor: { x, y, isTyping: false },
-                    });
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (socket && currentDoc && user) {
-                    const textarea = e.currentTarget;
-                    const cursorPosition = textarea.selectionStart;
-
-                    // Calculate exact cursor position
-                    const { x, y } = getCursorPosition(
-                      textarea,
-                      cursorPosition
-                    );
-
-                    socket.emit("cursor", {
-                      docId: currentDoc.id,
-                      cursor: { x, y, isTyping: false },
-                    });
-                  }
-                }}
-                onClick={(e) => {
-                  if (socket && currentDoc && user) {
-                    const textarea = e.currentTarget;
-                    const cursorPosition = textarea.selectionStart;
-
-                    // Calculate exact cursor position
-                    const { x, y } = getCursorPosition(
-                      textarea,
-                      cursorPosition
-                    );
-
-                    socket.emit("cursor", {
-                      docId: currentDoc.id,
-                      cursor: { x, y, isTyping: false },
-                    });
-                  }
-                }}
+                onKeyUp={updateCaretPosition}
+                onClick={updateCaretPosition}
                 placeholder="Start writing your document..."
                 className="w-full h-full resize-none border-none outline-none text-gray-900 text-lg leading-relaxed bg-transparent font-serif relative z-10"
                 style={{ minHeight: "calc(100vh - 200px)" }}
               />
 
-              {/* Live Cursors Overlay */}
+              {/* Local Blinking Caret */}
               <div className="absolute inset-0 pointer-events-none z-20">
-                {Object.entries(cursors).map(([userId, cursorData]) => {
-                  if (!cursorData || !cursorData.username) return null;
+                <div
+                  className="absolute w-0.5 h-6 bg-gray-900 animate-pulse"
+                  style={{
+                    left: `${caretPosition.x}px`,
+                    top: `${caretPosition.y}px`,
+                    animation: "blink 1s infinite",
+                  }}
+                />
+              </div>
 
-                  const { username, x, y, isTyping } = cursorData;
-
-                  return (
+              {/* Other Users' Cursors */}
+              <div className="absolute inset-0 pointer-events-none z-30">
+                {cursors.map((cursor) => (
+                  <div key={cursor.userId} className="absolute">
                     <div
-                      key={userId}
-                      className="absolute transition-all duration-150 ease-out"
+                      className="w-0.5 h-6 bg-blue-500 animate-pulse"
                       style={{
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: "translateY(-2px)",
+                        left: `${cursor.x}px`,
+                        top: `${cursor.y}px`,
+                        animation: "blink 1s infinite",
+                      }}
+                    />
+                    <div
+                      className="absolute top-6 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                      style={{
+                        left: `${cursor.x}px`,
+                        top: `${cursor.y + 6}px`,
                       }}
                     >
-                      {/* Cursor Line */}
-                      <div
-                        className="w-0.5 h-6 absolute"
-                        style={{
-                          backgroundColor: getCursorColor(username),
-                        }}
-                      />
-
-                      {/* User Name Bubble */}
-                      <div
-                        className="absolute -top-8 left-0 px-2 py-1 rounded text-xs font-medium text-white whitespace-nowrap shadow-lg"
-                        style={{
-                          backgroundColor: getCursorColor(username),
-                        }}
-                      >
-                        {username}
-                        {isTyping && (
-                          <span className="ml-1 animate-pulse">
-                            (typing...)
-                          </span>
-                        )}
-                      </div>
+                      {cursor.username}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
