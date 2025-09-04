@@ -16,6 +16,7 @@ import {
   Send,
   X,
   History,
+  Save,
 } from "lucide-react";
 
 export default function Editor({ docId }: { docId: number }) {
@@ -413,15 +414,17 @@ export default function Editor({ docId }: { docId: number }) {
         {/* Editor */}
         <div className="flex-1 flex flex-col">
           {/* Editor Toolbar */}
-          <div className="bg-white border-b border-gray-200 px-8 py-3">
+          <div className="bg-white border-b border-gray-200 px-8 py-3 flex justify-between">
             <div className="flex items-center text-sm text-gray-600">
               <Users className="w-5 h-5 mr-2" />
               <span>
                 {docUsers.length} active user{docUsers.length !== 1 ? "s" : ""}
               </span>
             </div>
+            <div className="autoSaved flex gap-2 items-center text-gray-600">
+              <Save className="w-4 h-4" /> Auto Saved
+            </div>
           </div>
-
           {/* Editor Content */}
           <div className="flex-1 p-8 relative">
             <div className="max-w-6xl mx-auto relative">
