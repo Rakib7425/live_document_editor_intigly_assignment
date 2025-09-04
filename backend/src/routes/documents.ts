@@ -3,6 +3,10 @@ import { z } from "zod";
 import { db } from "../db/client.js";
 import { documents, chatMessages, users } from "../db/schema.js";
 import { countPresenceForDocs } from "../services/presence.js";
+import {
+  getDocumentVersions,
+  getDocumentVersion,
+} from "../services/versions.js";
 import { desc, eq, ilike, and } from "drizzle-orm";
 import { io } from "../server.js";
 
@@ -122,6 +126,40 @@ router.delete("/:id", async (req, res) => {
   io.emit("document:deleted", { id });
 
   return res.json({ success: true });
+});
+
+// Get document versions
+router.get("/:id/versions", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const doc = (
+    await db.select().from(documents).where(eq(documents.id, id))
+  ).at(0);
+  if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  const versions = await getDocumentVersions(id);
+  return res.json(versions);
+});
+
+// Get specific document version
+router.get("/:id/versions/:version", async (req, res) => {
+  const id = Number(req.params.id);
+  const version = Number(req.params.version);
+
+  if (Number.isNaN(id) || Number.isNaN(version)) {
+    return res.status(400).json({ error: "Invalid id or version" });
+  }
+
+  const doc = (
+    await db.select().from(documents).where(eq(documents.id, id))
+  ).at(0);
+  if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  const versionData = await getDocumentVersion(id, version);
+  if (!versionData) return res.status(404).json({ error: "Version not found" });
+
+  return res.json(versionData);
 });
 
 export default router;

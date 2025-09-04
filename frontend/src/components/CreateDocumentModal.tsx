@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore } from "../store";
+import { X } from "lucide-react";
 
 export default function CreateDocumentModal() {
   const [title, setTitle] = useState("");
@@ -43,19 +44,7 @@ export default function CreateDocumentModal() {
               onClick={() => setShowCreateModal(false)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="w-6 h-6" />
             </button>
           </div>
 

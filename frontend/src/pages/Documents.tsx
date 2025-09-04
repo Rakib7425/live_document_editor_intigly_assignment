@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore } from "../store";
 import CreateDocumentModal from "../components/CreateDocumentModal";
+import { Search, Plus, FileText, Users, Clock, User } from "lucide-react";
 
 export default function Documents() {
   const [docs, setDocs] = useState<any[]>([]);
@@ -128,19 +129,7 @@ export default function Documents() {
           <div className="mb-8">
             <div className="relative max-w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
+                <Search className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="text"
@@ -155,19 +144,7 @@ export default function Documents() {
           {/* Empty State */}
           <div className="text-center py-16">
             <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <svg
-                className="w-12 h-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+              <FileText className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               No documents yet
@@ -179,19 +156,7 @@ export default function Documents() {
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
             >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <Plus className="w-5 h-5 mr-2" />
               Create your first document
             </button>
           </div>
@@ -219,19 +184,7 @@ export default function Documents() {
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
           >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            <Plus className="w-5 h-5 mr-2" />
             New Document
           </button>
         </div>
@@ -240,19 +193,7 @@ export default function Documents() {
         <div className="mb-8">
           <div className="relative max-w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
             <input
               type="text"
@@ -297,19 +238,7 @@ export default function Documents() {
                 <div className="flex items-start space-x-4">
                   {/* Document Icon */}
                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-6 h-6 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
+                    <FileText className="w-6 h-6 text-blue-600" />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -334,35 +263,11 @@ export default function Documents() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                            />
-                          </svg>
+                          <Users className="w-4 h-4" />
                           <span>{doc.activeCount || 0}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
+                          <Clock className="w-4 h-4" />
                           <span>
                             {getTimeAgo(doc.updatedAt || doc.createdAt)}
                           </span>

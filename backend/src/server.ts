@@ -25,6 +25,11 @@ import {
   markUserInactive,
   heartbeatUser,
 } from "./services/presenceGlobal.js";
+import {
+  startDocumentSession,
+  updateDocumentSession,
+  endDocumentSession,
+} from "./services/sessions.js";
 
 const app = express();
 app.use(cors());
@@ -87,6 +92,12 @@ io.on("connection", (socket) => {
       const users = await listPresence(docId);
       const cursors = await getCursors(docId);
       const snapshot = await getDocumentSnapshot(docId);
+
+      // Start document session if this is the first user
+      if (users.length === 1) {
+        await startDocumentSession(docId, snapshot.content || "", userId);
+      }
+
       io.to(room).emit("presence:update", { type: "join", users });
       socket.emit("cursors:init", cursors);
       socket.emit("doc:snapshot", snapshot);
@@ -98,6 +109,12 @@ io.on("connection", (socket) => {
     socket.leave(room);
     await removePresence(docId, socket.id);
     const users = await listPresence(docId);
+
+    // End document session if this was the last user
+    if (users.length === 0) {
+      await endDocumentSession(docId);
+    }
+
     io.to(room).emit("presence:update", { type: "leave", users });
     io.to(room).emit("cursor:remove", socket.id);
   });
@@ -143,7 +160,7 @@ io.on("connection", (socket) => {
 
   socket.on(
     "edit",
-    ({
+    async ({
       docId,
       delta,
       version,
@@ -155,8 +172,11 @@ io.on("connection", (socket) => {
       content: string;
     }) => {
       const room = `doc:${docId}`;
-      socket.to(room).emit("edit", { userId: socket.id, delta, version });
+      socket.to(room).emit("edit", { userId: socket.id, content, version });
       queueDocumentUpdate({ documentId: docId, content, version });
+
+      // Update document session to track edits
+      await updateDocumentSession(docId, content);
     }
   );
 

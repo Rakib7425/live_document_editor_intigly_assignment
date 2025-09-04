@@ -45,3 +45,18 @@ export const chatMessages = pgTable("chat_messages", {
     .defaultNow()
     .notNull(),
 });
+
+export const documentVersions = pgTable("document_versions", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id")
+    .notNull()
+    .references(() => documents.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  version: integer("version").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
+  createdBy: integer("created_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+});

@@ -2,7 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../store";
 import { DocsAPI } from "../api";
-import { User } from "lucide-react";
+import VersionHistoryModal from "../components/VersionHistoryModal";
+import {
+  User,
+  Share2,
+  Copy,
+  Check,
+  ArrowLeft,
+  Edit3,
+  Trash2,
+  Settings,
+  Users,
+  MessageCircle,
+  Send,
+  MoreHorizontal,
+  X,
+  History,
+} from "lucide-react";
 
 export default function Editor({ docId }: { docId: number }) {
   const {
@@ -23,6 +39,9 @@ export default function Editor({ docId }: { docId: number }) {
   const [caretPosition, setCaretPosition] = useState({ x: 0, y: 0 });
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -79,18 +98,17 @@ export default function Editor({ docId }: { docId: number }) {
   // Listen for remote edits
   useEffect(() => {
     const handleRemoteEdit = (event: CustomEvent) => {
-      const { userId, delta, version } = event.detail;
+      const { userId, content: remoteContent, version } = event.detail;
 
       // Don't apply our own edits
       if (userId === socket?.id) return;
 
-      // For now, we'll use a simple approach: fetch the latest document content
-      // In a more sophisticated implementation, we'd apply the delta
-      if (currentDoc) {
-        DocsAPI.get(currentDoc.id).then(({ doc }) => {
-          setContent(doc.content || "");
-          setCurrentDoc(doc);
-        });
+      // Apply the remote content directly
+      if (remoteContent !== undefined) {
+        setContent(remoteContent);
+        if (currentDoc) {
+          setCurrentDoc({ ...currentDoc, content: remoteContent, version });
+        }
       }
     };
 
@@ -284,6 +302,20 @@ export default function Editor({ docId }: { docId: number }) {
     );
   }
 
+  function getShareUrl() {
+    return `${window.location.origin}/doc/${docId}`;
+  }
+
+  async function copyToClipboard() {
+    try {
+      await navigator.clipboard.writeText(getShareUrl());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  }
+
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -294,20 +326,8 @@ export default function Editor({ docId }: { docId: number }) {
               onClick={() => navigate("/")}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors duration-200"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-              <span className="text-sm font-semibold  ">Back to Documents</span>
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-semibold">Back to Documents</span>
             </button>
             <div className="h-6 w-px bg-gray-300" />
             {/* Document title and last updated date and time */}
@@ -332,19 +352,7 @@ export default function Editor({ docId }: { docId: number }) {
                     onClick={handleTitleSave}
                     className="text-green-600 hover:text-green-700"
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 28 28"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                    <Check className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => {
@@ -353,19 +361,7 @@ export default function Editor({ docId }: { docId: number }) {
                     }}
                     className="text-red-600 hover:text-red-700"
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 28 28"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               ) : (
@@ -375,21 +371,7 @@ export default function Editor({ docId }: { docId: number }) {
                   disabled={!isOwner()}
                 >
                   {currentDoc?.title}
-                  {isOwner() && (
-                    <svg
-                      className="w-4 h-4 inline ml-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                  )}
+                  {isOwner() && <Edit3 className="w-4 h-4 inline ml-1" />}
                 </button>
               )}
               <span className="text-sm text-gray-500">
@@ -399,41 +381,31 @@ export default function Editor({ docId }: { docId: number }) {
           </div>
           {/* Document Actions */}
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Share document"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setShowVersionHistory(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Version history"
+            >
+              <History className="w-5 h-5" />
+            </button>
             {isOwner() && (
               <button
                 onClick={handleDeleteDocument}
                 className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                 title="Delete document"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                <Trash2 className="w-5 h-5" />
               </button>
             )}
             <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                />
-              </svg>
+              <Settings className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -444,8 +416,8 @@ export default function Editor({ docId }: { docId: number }) {
         <div className="flex-1 flex flex-col">
           {/* Editor Toolbar */}
           <div className="bg-white border-b border-gray-200 px-8 py-3">
-            <div className="flex text-sm text-gray-600">
-              <User className="w-5 h-5" />{" "}
+            <div className="flex items-center text-sm text-gray-600">
+              <Users className="w-5 h-5 mr-2" />
               <span>
                 {docUsers.length} active user{docUsers.length !== 1 ? "s" : ""}
               </span>
@@ -567,7 +539,10 @@ export default function Editor({ docId }: { docId: number }) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Chat</h3>
+                <div className="flex items-center">
+                  <MessageCircle className="w-5 h-5 mr-2 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900">Chat</h3>
+                </div>
                 {typing && (
                   <span className="text-xs text-gray-500 animate-pulse">
                     {typing}
@@ -580,19 +555,7 @@ export default function Editor({ docId }: { docId: number }) {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
               {messages.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-3 text-gray-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
+                  <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">No messages yet</p>
                   <p className="text-xs text-gray-400">
                     Start the conversation!
@@ -644,25 +607,79 @@ export default function Editor({ docId }: { docId: number }) {
                   disabled={!chatInput.trim()}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Share2 className="w-5 h-5 mr-2" />
+                  Share Document
+                </h2>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Share Link
+                </label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={getShareUrl()}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {copied && (
+                  <p className="text-sm text-green-600 mt-2">
+                    Link copied to clipboard!
+                  </p>
+                )}
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <p>Anyone with this link can view and edit this document.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        docId={docId}
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        onSelectVersion={(version) => {
+          setContent(version.content);
+          setShowVersionHistory(false);
+        }}
+      />
     </div>
   );
 }
