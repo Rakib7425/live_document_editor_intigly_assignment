@@ -70,7 +70,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     const { socket, user } = get();
     if (socket) return;
 
-    const s = io("http://localhost:4000");
+    const s = io(import.meta.env.VITE_APP_API_URL || "http://localhost:4000");
 
     s.on("connect", () => {
       if (user) s.emit("active:login", { username: user.username });
