@@ -9,7 +9,7 @@ export default function Documents() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
-  const user = useStore((s) => s.user);
+  // const user = useStore((s) => s.user);
   // const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
   const navigate = useNavigate();

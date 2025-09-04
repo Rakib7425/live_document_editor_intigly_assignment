@@ -53,11 +53,21 @@ export const useStore = create<State & Actions>((set, get) => ({
   cursors: [],
   showCreateModal: false,
 
-  setUser: (u) => set({ user: u }),
+  setUser: (u) => {
+    try {
+      localStorage.setItem("live_docs_user", JSON.stringify(u));
+    } catch {}
+    set({ user: u });
+  },
+  // Persist user in localStorage for reloads
+  // Restore on app start happens in main/App via reading localStorage (added below)
 
   logout: () => {
     const { socket } = get();
     socket?.close();
+    try {
+      localStorage.removeItem("live_docs_user");
+    } catch {}
     set({
       user: undefined,
       socket: undefined,
@@ -76,7 +86,15 @@ export const useStore = create<State & Actions>((set, get) => ({
     const s = io(import.meta.env.VITE_APP_API_URL || "http://localhost:4000");
 
     s.on("connect", () => {
-      if (user) s.emit("active:login", { username: user.username });
+      let u = user;
+      if (!u) {
+        try {
+          const raw = localStorage.getItem("live_docs_user");
+          if (raw) u = JSON.parse(raw);
+        } catch {}
+        if (u) set({ user: u });
+      }
+      if (u) s.emit("active:login", { username: u.username });
     });
 
     s.on("chat:message", (m) => set({ messages: [...get().messages, m] }));
@@ -107,8 +125,19 @@ export const useStore = create<State & Actions>((set, get) => ({
       }
     );
 
-    s.on("cursors:init", (cursors: State["cursors"]) => {
-      set({ cursors: Array.isArray(cursors) ? cursors : [] });
+    s.on("cursors:init", (cursors: any) => {
+      // Normalize object-incoming payloads into array if needed
+      const normalized = Array.isArray(cursors)
+        ? cursors
+        : Object.entries(cursors || {}).map(([userId, cur]: any) => ({
+            userId,
+            username: cur?.username ?? "Unknown",
+            x: cur?.x,
+            y: cur?.y,
+            index: cur?.index,
+            isTyping: !!cur?.isTyping,
+          }));
+      set({ cursors: normalized });
     });
 
     s.on(
@@ -116,8 +145,9 @@ export const useStore = create<State & Actions>((set, get) => ({
       (cursorData: {
         userId: string;
         username: string;
-        x: number;
-        y: number;
+        x?: number;
+        y?: number;
+        index?: number;
         isTyping: boolean;
       }) => {
         const { cursors } = get();

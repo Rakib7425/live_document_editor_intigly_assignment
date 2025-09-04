@@ -39,16 +39,32 @@ export async function setCursor(
 
 export async function getCursors(
   docId: number
-): Promise<Record<string, unknown>> {
+): Promise<
+  Array<{
+    userId: string;
+    username: string;
+    x?: number;
+    y?: number;
+    index?: number;
+    isTyping?: boolean;
+  }>
+> {
   const map = await redis.hgetall(cursorHash(docId));
   const presence = await redis.hgetall(presenceSet(docId));
-  const result: Record<string, unknown> = {};
+  const result: Array<{
+    userId: string;
+    username: string;
+    x?: number;
+    y?: number;
+    index?: number;
+    isTyping?: boolean;
+  }> = [];
 
   for (const [id, json] of Object.entries(map)) {
     try {
       const cursor = JSON.parse(json);
       const username = presence[id] || "Unknown";
-      result[id] = { ...cursor, username };
+      result.push({ userId: id, username, ...cursor });
     } catch {}
   }
   return result;

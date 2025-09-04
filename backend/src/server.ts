@@ -133,11 +133,13 @@ io.on("connection", (socket) => {
       docId,
       x,
       y,
+      index,
       isTyping,
     }: {
       docId: number;
-      x: number;
-      y: number;
+      x?: number;
+      y?: number;
+      index?: number;
       isTyping: boolean;
     }) => {
       if (!socket.data?.username) return;
@@ -145,6 +147,7 @@ io.on("connection", (socket) => {
       await setCursor(docId, socket.id, {
         x,
         y,
+        index,
         isTyping,
         username: socket.data.username,
       });
@@ -153,6 +156,7 @@ io.on("connection", (socket) => {
         username: socket.data.username,
         x,
         y,
+        index,
         isTyping,
       });
     }

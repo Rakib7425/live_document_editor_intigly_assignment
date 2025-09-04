@@ -14,3 +14,5 @@ backend/drizzle
 frontend/dist
 backend/dist
 dist-ssr  
+backend/.env
+frontend/.env
