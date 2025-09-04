@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
-import { useStore } from "../store";
+import { useStore } from "../store/store";
 import { X } from "lucide-react";
 
 export default function CreateDocumentModal() {

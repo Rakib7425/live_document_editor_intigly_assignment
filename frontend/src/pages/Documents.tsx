@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
-import { useStore } from "../store";
+import { useStore, type Doc } from "../store/store";
 import CreateDocumentModal from "../components/CreateDocumentModal";
-import { Search, Plus, FileText, Users, Clock, User } from "lucide-react";
+import { Search, Plus, FileText, Users, Clock } from "lucide-react";
 
 export default function Documents() {
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const user = useStore((s) => s.user);
-  const showCreateModal = useStore((s) => s.showCreateModal);
+  // const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
   const navigate = useNavigate();
 
@@ -72,6 +72,7 @@ export default function Documents() {
         handleDocumentDelete as EventListener
       );
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function Documents() {
       if (q !== "") load();
     }, 300);
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   function getTimeAgo(date: string) {
@@ -214,13 +216,13 @@ export default function Documents() {
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse"
               >
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg" />
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-4" />
                     <div className="space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                      <div className="h-3 bg-gray-200 rounded" />
+                      <div className="h-3 bg-gray-200 rounded w-5/6" />
                     </div>
                   </div>
                 </div>
@@ -249,7 +251,7 @@ export default function Documents() {
 
                     {/* Author */}
                     <p className="text-sm text-gray-500 mb-3">
-                      by {user?.username || "admin"}
+                      by {doc.ownerUserName || "admin"}
                     </p>
 
                     {/* Content Preview */}

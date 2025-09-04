@@ -9,6 +9,9 @@ export type Doc = {
   activeCount?: number;
   content?: string;
   version?: number;
+  ownerId?: number;
+  ownerUserName?: string;
+  createdAt?: string;
 };
 
 type State = {

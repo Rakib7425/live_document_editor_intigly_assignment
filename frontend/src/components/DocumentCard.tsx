@@ -6,7 +6,7 @@ interface DocumentCardProps {
   preview: string;
   usersCount: number;
   lastUpdated: string;
-  avatars: string[]; // initials or avatar colors
+  avatars: string[];
   onClick: () => void;
 }
 

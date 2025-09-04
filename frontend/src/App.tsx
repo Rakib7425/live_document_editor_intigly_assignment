@@ -2,7 +2,7 @@ import { Routes, Route, Navigate, Link, useParams } from "react-router-dom";
 import Login from "./pages/Login";
 import Documents from "./pages/Documents";
 import Editor from "./pages/Editor";
-import { useStore } from "./store";
+import { useStore } from "./store/store";
 import ActiveUsers from "./components/ActiveUsers";
 
 // Wrapper component for Editor to extract docId from URL params

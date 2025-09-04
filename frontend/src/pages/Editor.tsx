@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../store";
+import { useStore } from "../store/store";
 import { DocsAPI } from "../api";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import {
-  User,
   Share2,
   Copy,
   Check,
@@ -15,7 +14,6 @@ import {
   Users,
   MessageCircle,
   Send,
-  MoreHorizontal,
   X,
   History,
 } from "lucide-react";

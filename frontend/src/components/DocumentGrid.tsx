@@ -7,7 +7,7 @@ export default function DocumentGrid({ documents }: { documents: any[] }) {
         <DocumentCard
           key={doc.id}
           title={doc.title}
-          author={doc.author}
+          author={doc.ownerUserName}
           preview={doc.preview}
           usersCount={doc.usersCount}
           lastUpdated={doc.lastUpdated}
