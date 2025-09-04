@@ -429,6 +429,7 @@ export default function Editor({ docId }: { docId: number }) {
           <div className="flex-1 p-8 relative">
             <div className="max-w-6xl mx-auto relative">
               <textarea
+                autoFocus
                 ref={textareaRef}
                 value={content}
                 onChange={onChange}
