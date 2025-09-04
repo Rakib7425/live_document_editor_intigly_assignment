@@ -7,9 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
+    "studio": "yarn drizzle-kit studio",
     "start": "node dist/server.js",
-    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts"
+    "db:repair": "yarn drizzle-kit generate  --config=drizzle.config.ts && yarn drizzle-kit migrate --config=drizzle.config.ts && yarn drizzle-kit push && yarn drizzle-kit pull && yarn drizzle-kit check"
   },
   "keywords": [],
   "author": "",

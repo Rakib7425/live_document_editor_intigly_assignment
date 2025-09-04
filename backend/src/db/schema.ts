@@ -20,6 +20,10 @@ export const documents = pgTable("documents", {
   title: varchar("title", { length: 256 }).notNull(),
   content: text("content").notNull().default(""),
   version: integer("version").notNull().default(0),
+  ownerId: integer("owner_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  ownerUserName: varchar("owner_user_name", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: false })
     .defaultNow()
     .notNull(),

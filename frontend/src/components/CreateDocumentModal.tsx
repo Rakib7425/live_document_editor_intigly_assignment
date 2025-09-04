@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore } from "../store";
 
@@ -7,6 +8,7 @@ export default function CreateDocumentModal() {
   const [loading, setLoading] = useState(false);
   const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
+  const navigate = useNavigate();
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -18,7 +20,7 @@ export default function CreateDocumentModal() {
       setTitle("");
       setShowCreateModal(false);
       // Navigate to the new document
-      window.location.hash = `#/doc/${doc.id}`;
+      navigate(`/doc/${doc.id}`);
     } catch (error) {
       console.error("Failed to create document:", error);
     } finally {

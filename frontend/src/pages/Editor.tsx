@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../store";
 import { DocsAPI } from "../api";
+import { User } from "lucide-react";
 
 export default function Editor({ docId }: { docId: number }) {
   const {
@@ -20,6 +22,7 @@ export default function Editor({ docId }: { docId: number }) {
   const [typing, setTyping] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function init() {
@@ -212,9 +215,15 @@ export default function Editor({ docId }: { docId: number }) {
     return colors[index];
   }
 
-  function formatTime(dateString: string) {
+  function formatDateTime(dateString: string) {
     const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   }
 
   return (
@@ -224,8 +233,8 @@ export default function Editor({ docId }: { docId: number }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => (window.location.hash = "#/")}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => navigate("/")}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors duration-200"
             >
               <svg
                 className="w-5 h-5"
@@ -240,18 +249,19 @@ export default function Editor({ docId }: { docId: number }) {
                   d="M10 19l-7-7m0 0l7-7m-7 7h18"
                 />
               </svg>
+              <span className="text-sm font-semibold  ">Back to Documents</span>
             </button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {currentDoc?.title || "Untitled"}
-              </h1>
-              <p className="text-sm text-gray-500">
-                {docUsers.length} collaborator{docUsers.length !== 1 ? "s" : ""}{" "}
-                online
-              </p>
+            <div className="h-6 w-px bg-gray-300" />
+            {/* //document title  and last updated date and time*/}
+            <div className="flex flex-col items-start  ">
+              <span className="text-sm font-semibold  ">
+                {currentDoc?.title}
+              </span>
+              <span className="text-sm text-gray-500">
+                Last edited: {formatDateTime(currentDoc?.updatedAt || "")}
+              </span>
             </div>
           </div>
-
           {/* Document Actions */}
           <div className="flex items-center space-x-3">
             <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
@@ -298,109 +308,18 @@ export default function Editor({ docId }: { docId: number }) {
         {/* Editor */}
         <div className="flex-1 flex flex-col">
           {/* Editor Toolbar */}
-          <div className="bg-white border-b border-gray-200 px-6 py-3">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
+          <div className="bg-white border-b border-gray-200 px-8 py-3">
+            <div className="flex text-sm text-gray-600">
+              <User className="w-5 h-5" />{" "}
+              <span>
+                {docUsers.length} active user{docUsers.length !== 1 ? "s" : ""}
+              </span>
             </div>
           </div>
 
           {/* Editor Content */}
           <div className="flex-1 p-8 relative">
-            <div className="max-w-4xl mx-auto relative">
+            <div className="max-w-6xl mx-auto relative">
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -611,7 +530,7 @@ export default function Editor({ docId }: { docId: number }) {
                           {m.user.username}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatTime(m.createdAt)}
+                          {formatDateTime(m.createdAt)}
                         </span>
                       </div>
                       <div className="bg-gray-50 rounded-lg py-2 max-w-[100%] ">

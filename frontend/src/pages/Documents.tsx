@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore } from "../store";
 import CreateDocumentModal from "../components/CreateDocumentModal";
@@ -10,6 +11,7 @@ export default function Documents() {
   const user = useStore((s) => s.user);
   const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
+  const navigate = useNavigate();
 
   async function load() {
     setLoading(true);
@@ -244,7 +246,7 @@ export default function Documents() {
               <div
                 key={doc.id}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => (window.location.hash = `#/doc/${doc.id}`)}
+                onClick={() => navigate(`/doc/${doc.id}`)}
               >
                 <div className="flex items-start space-x-4">
                   {/* Document Icon */}
