@@ -63,7 +63,7 @@ export default function Editor({ docId }: { docId: number }) {
     // Set up heartbeat for document presence
     const heartbeatInterval = setInterval(() => {
       socket.emit("doc:heartbeat", { docId });
-    }, 30000); // Every 30 seconds
+    }, 20_000); // Every 20 seconds
 
     return () => {
       socket.emit("leaveDoc", { docId });
@@ -333,10 +333,10 @@ export default function Editor({ docId }: { docId: number }) {
                     className="text-green-600 hover:text-green-700"
                   >
                     <svg
-                      className="w-4 h-4"
+                      className="w-6 h-6"
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      viewBox="0 0 28 28"
                     >
                       <path
                         strokeLinecap="round"
@@ -354,10 +354,10 @@ export default function Editor({ docId }: { docId: number }) {
                     className="text-red-600 hover:text-red-700"
                   >
                     <svg
-                      className="w-4 h-4"
+                      className="w-6 h-6"
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      viewBox="0 0 28 28"
                     >
                       <path
                         strokeLinecap="round"
@@ -377,7 +377,7 @@ export default function Editor({ docId }: { docId: number }) {
                   {currentDoc?.title}
                   {isOwner() && (
                     <svg
-                      className="w-3 h-3 inline ml-1"
+                      className="w-4 h-4 inline ml-1"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -432,27 +432,6 @@ export default function Editor({ docId }: { docId: number }) {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                />
-              </svg>
-            </button>
-            <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
             </button>
