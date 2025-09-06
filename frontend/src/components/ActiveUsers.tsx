@@ -7,7 +7,7 @@ export default function ActiveUsers() {
     AuthAPI.active().then((r) => setUsers(r.users));
   }, []);
   return (
-    <div className="text-sm text-white/70">
+    <div className="text-sm text-gray-700">
       Active now: {users.join(", ") || "—"}
     </div>
   );

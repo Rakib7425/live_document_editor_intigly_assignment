@@ -433,7 +433,7 @@ export default function Editor({ docId }: { docId: number }) {
               </span>
             </div>
             <div className="autoSaved flex gap-2 items-center text-gray-600">
-              <Save className="w-4 h-4" /> Auto Saved
+              <Save className="w-4 h-4" /> Auto-saved
             </div>
           </div>
           {/* Editor Content */}

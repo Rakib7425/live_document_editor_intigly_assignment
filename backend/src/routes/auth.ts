@@ -21,18 +21,18 @@ router.post("/login", async (req, res) => {
     .select()
     .from(users)
     .where(eq(users.username, username));
-  let userId: number;
+  let userId: number | undefined;
   if (existing.length > 0) {
-    userId = existing[0].id;
+    userId = existing[0]?.id;
   } else {
     const inserted = await db
       .insert(users)
       .values({ username })
       .returning({ id: users.id });
-    userId = inserted[0].id;
+    userId = inserted[0]?.id;
   }
 
-  return res.json({ id: userId, username });
+  return res.json({ id: userId!, username });
 });
 
 export default router;

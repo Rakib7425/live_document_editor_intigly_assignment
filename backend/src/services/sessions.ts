@@ -1,4 +1,4 @@
-import { redis } from "../redis.js";
+import { redis } from "../redis/redis.js";
 import { createDocumentVersion } from "./versions.js";
 
 const sessionKey = (docId: number) => `doc:${docId}:session`;

@@ -1,4 +1,4 @@
-import { redis } from "../redis.js";
+import { redis } from "../redis/redis.js";
 
 const presenceSet = (docId: number) => `doc:${docId}:presence`;
 const cursorHash = (docId: number) => `doc:${docId}:cursors`;
@@ -37,9 +37,7 @@ export async function setCursor(
   await redis.expire(cursorHash(docId), cursorTtlSeconds);
 }
 
-export async function getCursors(
-  docId: number
-): Promise<
+export async function getCursors(docId: number): Promise<
   Array<{
     userId: string;
     username: string;

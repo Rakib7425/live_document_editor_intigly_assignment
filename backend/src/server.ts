@@ -30,6 +30,8 @@ import {
   updateDocumentSession,
   endDocumentSession,
 } from "./services/sessions.js";
+import { isRedisDBConnected, redisConfig } from "./redis/redis.js";
+import { isPostgresDBConnected } from "./db/client.js";
 
 const app = express();
 app.use(cors());
@@ -47,9 +49,25 @@ export const io = new Server(server, {
   cors: { origin: "*" },
 });
 
+// const redisUrl = process.env.REDIS_URL || `redis://${redisConfig.username}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
+
 // Redis adapter for scaling
-const pubClient = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
+const redisUrl =
+  process.env.REDIS_URL ||
+  `redis://${redisConfig.username}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
+
+const pubClient = new Redis(redisUrl as any);
 const subClient = pubClient.duplicate();
+
+// Add error handlers for Redis clients
+pubClient.on("error", (err) => {
+  console.error("❌ Redis pub client error:", err.message);
+});
+
+subClient.on("error", (err) => {
+  console.error("❌ Redis sub client error:", err.message);
+});
+
 io.adapter(createAdapter(pubClient, subClient));
 
 io.on("connection", (socket) => {
@@ -95,7 +113,7 @@ io.on("connection", (socket) => {
 
       // Start document session if this is the first user
       if (users.length === 1) {
-        await startDocumentSession(docId, snapshot.content || "", userId);
+        await startDocumentSession(docId, snapshot?.content || "", userId);
       }
 
       io.to(room).emit("presence:update", { type: "join", users });
@@ -229,6 +247,11 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+
+// if both DB successfully connected the start the server
+
+if ((await isPostgresDBConnected()) && (await isRedisDBConnected())) {
+  server.listen(PORT, () => {
+    console.log(`☑ Server running on http://localhost:${PORT}`);
+  });
+}

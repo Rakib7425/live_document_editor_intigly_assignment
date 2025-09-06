@@ -1,4 +1,4 @@
-import { redis } from "../redis.js";
+import { redis } from "../redis/redis.js";
 
 const docKey = (id: number) => `doc:${id}:snapshot`;
 const ttlSeconds = 30;

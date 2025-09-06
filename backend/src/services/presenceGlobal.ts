@@ -1,4 +1,4 @@
-import { redis } from "../redis.js";
+import { redis } from "../redis/redis.js";
 
 const ACTIVE_USERS_SET = "presence:active:users";
 const USER_SOCKET_KEY = (username: string, socketId: string) =>
