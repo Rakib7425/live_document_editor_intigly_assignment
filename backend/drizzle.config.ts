@@ -7,7 +7,7 @@ export default {
   dialect: "postgresql",
   dbCredentials: {
     url:
-      process.env.DATABASE_URL ??
+      process.env.POSTGRES_DB_URL ??
       "postgres://postgres:postgres@localhost:5432/rtc_docs",
   },
 } satisfies Config;
