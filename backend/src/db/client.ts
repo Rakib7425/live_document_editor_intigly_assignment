@@ -2,16 +2,25 @@ import "dotenv/config";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 
-const dbConfig = {
+const dbConfig = process.env.POSTGRES_DB_URL ?? {
   host: process.env.DB_HOST || "localhost",
   port: Number(process.env.DB_PORT) || 5432,
   database: process.env.DB_NAME || "rtc_docs",
-  username: process.env.DB_USERNAME || "postgres",
+  user: process.env.DB_USERNAME || "postgres",
   password: process.env.DB_PASSWORD || "postgres",
-  ssl: process.env.DB_IS_SSL === "true" ? true : false,
+  ssl:
+    process.env.DB_IS_SSL === "true"
+      ? { rejectUnauthorized: false }
+      : undefined,
 };
 
-export const pg = postgres(dbConfig);
+// If connection string → use directly
+// If object → spread into postgres()
+export const pg =
+  typeof dbConfig === "string"
+    ? postgres(dbConfig, { ssl: { rejectUnauthorized: false } })
+    : postgres(dbConfig as any);
+
 export const db = drizzle(pg);
 
 // test connection

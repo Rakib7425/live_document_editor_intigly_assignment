@@ -43,6 +43,7 @@ export default function Editor({ docId }: { docId: number }) {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -121,6 +122,15 @@ export default function Editor({ docId }: { docId: number }) {
     };
   }, [socket, currentDoc]);
 
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Function to calculate exact cursor position for local caret
   function getCursorPosition(
     textarea: HTMLTextAreaElement,
@@ -183,9 +193,47 @@ export default function Editor({ docId }: { docId: number }) {
     }
   }
 
+  // Function to update caret position with typing indicator
+  function updateCaretPositionWithTyping() {
+    if (textareaRef.current) {
+      const cursorPosition = textareaRef.current.selectionStart;
+      const { x, y } = getCursorPosition(textareaRef.current, cursorPosition);
+      setCaretPosition({ x, y });
+
+      // Emit cursor position to other users with typing indicator
+      if (socket && currentDoc) {
+        socket.emit("cursor", {
+          docId: currentDoc.id,
+          x,
+          y,
+          index: cursorPosition,
+          isTyping: true,
+        });
+
+        // Clear previous timeout
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Set timeout to stop typing indicator after 2 seconds
+        typingTimeoutRef.current = setTimeout(() => {
+          if (socket && currentDoc) {
+            socket.emit("cursor", {
+              docId: currentDoc.id,
+              x,
+              y,
+              index: cursorPosition,
+              isTyping: false,
+            });
+          }
+        }, 2000);
+      }
+    }
+  }
+
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setContent(e.target.value);
-    updateCaretPosition();
+    updateCaretPositionWithTyping();
     if (socket && currentDoc) {
       socket.emit("edit", {
         docId: currentDoc.id,
@@ -198,17 +246,6 @@ export default function Editor({ docId }: { docId: number }) {
           docId: currentDoc.id,
           username: user.username,
         });
-
-      // Broadcast cursor position
-      const cursorPosition = e.target.selectionStart;
-      const { x, y } = getCursorPosition(e.target, cursorPosition);
-      socket.emit("cursor", {
-        docId: currentDoc.id,
-        x,
-        y,
-        index: cursorPosition,
-        isTyping: true,
-      });
     }
   }
 
@@ -444,7 +481,7 @@ export default function Editor({ docId }: { docId: number }) {
                 ref={textareaRef}
                 value={content}
                 onChange={onChange}
-                onKeyUp={updateCaretPosition}
+                onKeyUp={updateCaretPositionWithTyping}
                 onClick={updateCaretPosition}
                 placeholder="Start writing your document..."
                 className="w-full h-full resize-none border-none outline-none text-gray-900 text-lg leading-relaxed bg-transparent font-serif relative z-10"
@@ -469,24 +506,43 @@ export default function Editor({ docId }: { docId: number }) {
                   .filter((c) => c.userId !== socket?.id)
                   .map((cursor) => {
                     if (cursor.x == null || cursor.y == null) return null;
+
+                    // Generate consistent colors for each user
+                    const colors = [
+                      "bg-green-500",
+                      "bg-purple-500",
+                      "bg-blue-500",
+                      "bg-red-500",
+                      "bg-yellow-500",
+                      "bg-pink-500",
+                      "bg-indigo-500",
+                      "bg-orange-500",
+                    ];
+                    const colorIndex =
+                      cursor.username.charCodeAt(0) % colors.length;
+                    const bgColor = colors[colorIndex];
+
                     return (
                       <div key={cursor.userId} className="absolute">
+                        {/* Cursor line */}
                         <div
-                          className="w-0.5 h-6 bg-blue-500 animate-pulse"
+                          className={`w-0.5 h-6 ${bgColor} animate-pulse`}
                           style={{
                             left: `${cursor.x}px`,
                             top: `${cursor.y}px`,
                             animation: "blink 1s infinite",
                           }}
                         />
+                        {/* User name box with typing indicator */}
                         <div
-                          className="absolute top-6 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+                          className={`absolute ${bgColor} text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg`}
                           style={{
-                            left: `${cursor.x}px`,
-                            top: `${cursor.y + 6}px`,
+                            left: `${cursor.x + 2}px`,
+                            top: `${cursor.y - 24}px`,
                           }}
                         >
                           {cursor.username}
+                          {cursor.isTyping ? " (typing...)" : ""}
                         </div>
                       </div>
                     );

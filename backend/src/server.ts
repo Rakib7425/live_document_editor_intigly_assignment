@@ -241,8 +241,26 @@ io.on("connection", (socket) => {
     }
 
     // Clean up presence from all documents this socket was in
-    // We need to find which documents this socket was in and remove presence
-    // For now, we'll rely on the Redis TTL to clean up stale presence
+    // Get all rooms this socket was in and clean up presence
+    const rooms = Array.from(socket.rooms);
+    for (const room of rooms) {
+      if (room.startsWith("doc:")) {
+        const docId = parseInt(room.replace("doc:", ""));
+        if (!isNaN(docId)) {
+          await removePresence(docId, socket.id);
+          const users = await listPresence(docId);
+
+          // End document session if this was the last user
+          if (users.length === 0) {
+            await endDocumentSession(docId);
+          }
+
+          // Notify remaining users about the disconnect
+          io.to(room).emit("presence:update", { type: "leave", users });
+          io.to(room).emit("cursor:remove", socket.id);
+        }
+      }
+    }
   });
 });
 
