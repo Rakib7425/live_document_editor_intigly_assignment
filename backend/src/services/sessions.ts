@@ -24,7 +24,7 @@ export async function startDocumentSession(
     lastEditTime: Date.now(),
     originalContent: content,
     currentContent: content,
-    createdBy,
+    createdBy: createdBy || 0,
   };
 
   await redis.setex(

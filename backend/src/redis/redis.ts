@@ -1,5 +1,5 @@
 import "dotenv/config";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 
 export const redisConfig = {
   host: process.env.REDIS_HOSTNAME || "localhost",
@@ -18,7 +18,7 @@ const redisUrl =
   process.env.REDIS_URL ||
   `redis://${redisConfig.username}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
 
-export const redis = new Redis(redisUrl as string);
+export const redis = new Redis(redisUrl);
 
 redis.on("connect", () => {
   console.log("🚀 Redis connection established");

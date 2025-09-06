@@ -119,7 +119,14 @@ export const useStore = create<State & Actions>((set, get) => ({
 
     s.on(
       "edit",
-      (editData: { userId: string; delta: any; version: number }) => {
+      (editData: {
+        userId: string;
+        delta: any;
+        version: number;
+        content: string;
+        operations?: any[];
+        baseContent?: string;
+      }) => {
         window.dispatchEvent(
           new CustomEvent("document:edit", { detail: editData })
         );
@@ -156,9 +163,8 @@ export const useStore = create<State & Actions>((set, get) => ({
         const updatedCursors = safeCursors.filter(
           (c) => c.userId !== cursorData.userId
         );
-        if (cursorData.isTyping) {
-          updatedCursors.push(cursorData);
-        }
+        // Always add cursor data, regardless of typing status
+        updatedCursors.push(cursorData);
         set({ cursors: updatedCursors });
       }
     );

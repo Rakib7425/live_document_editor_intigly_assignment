@@ -10,7 +10,7 @@ export async function createDocumentVersion(
   // Get the current version number
   const currentDoc = (
     await db.select().from(documents).where(eq(documents.id, documentId))
-  ).at(0);
+  )[0];
 
   if (!currentDoc) return;
 
@@ -40,11 +40,19 @@ export async function getDocumentVersions(documentId: number): Promise<
     createdBy?: number;
   }>
 > {
-  return await db
+  const result = await db
     .select()
     .from(documentVersions)
     .where(eq(documentVersions.documentId, documentId))
     .orderBy(desc(documentVersions.version));
+
+  return result.map((row) => ({
+    id: row.id,
+    content: row.content,
+    version: row.version,
+    createdAt: row.createdAt,
+    ...(row.createdBy !== null && { createdBy: row.createdBy }),
+  }));
 }
 
 export async function getDocumentVersion(
@@ -68,5 +76,14 @@ export async function getDocumentVersion(
     )
     .limit(1);
 
-  return result.at(0) || null;
+  const row = result[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    content: row.content,
+    version: row.version,
+    createdAt: row.createdAt,
+    ...(row.createdBy !== null && { createdBy: row.createdBy }),
+  };
 }

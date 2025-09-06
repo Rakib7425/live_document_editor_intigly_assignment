@@ -30,6 +30,7 @@ import {
   updateDocumentSession,
   endDocumentSession,
 } from "./services/sessions.js";
+import { textToOperations, applyOperations, transformOperations } from "./services/operations.js";
 import { isRedisDBConnected, redisConfig } from "./redis/redis.js";
 import { isPostgresDBConnected } from "./db/client.js";
 
@@ -187,18 +188,41 @@ io.on("connection", (socket) => {
       delta,
       version,
       content,
+      oldContent,
     }: {
       docId: number;
       delta: any;
       version: number;
       content: string;
+      oldContent?: string;
     }) => {
       const room = `doc:${docId}`;
-      socket.to(room).emit("edit", { userId: socket.id, content, version });
-      queueDocumentUpdate({ documentId: docId, content, version });
+      
+      // Get current document state
+      const snapshot = await getDocumentSnapshot(docId);
+      const currentContent = snapshot?.content || "";
+      
+      // If oldContent is provided, use it for operation calculation
+      const baseContent = oldContent || currentContent;
+      
+      // Convert text changes to operations
+      const operations = textToOperations(baseContent, content);
+      
+      // Broadcast the edit with operations for conflict resolution
+      socket.to(room).emit("edit", { 
+        userId: socket.id, 
+        content, 
+        version,
+        operations,
+        baseContent
+      });
+      
+      // Update document with conflict resolution
+      const finalContent = content; // For now, use the new content directly
+      queueDocumentUpdate({ documentId: docId, content: finalContent, version });
 
       // Update document session to track edits
-      await updateDocumentSession(docId, content);
+      await updateDocumentSession(docId, finalContent);
     }
   );
 

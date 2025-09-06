@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
     .returning({ id: documents.id });
 
   const newDoc = {
-    id: inserted[0].id,
+    id: inserted[0]?.id || 0,
     title,
     activeCount: 0,
     ownerId,
@@ -38,7 +38,7 @@ router.post("/", async (req, res) => {
   // Broadcast new document to all connected users
   io.emit("document:created", newDoc);
 
-  return res.json({ id: inserted[0].id, title, ownerId, ownerUserName });
+  return res.json({ id: inserted[0]?.id || 0, title, ownerId, ownerUserName });
 });
 
 router.get("/", async (req, res) => {
@@ -64,7 +64,7 @@ router.get("/:id", async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 50), 200);
   const doc = (
     await db.select().from(documents).where(eq(documents.id, id))
-  ).at(0);
+  )[0];
   if (!doc) return res.status(404).json({ error: "Not found" });
   const messages = await db
     .select({
@@ -96,7 +96,7 @@ router.put("/:id", async (req, res) => {
   const { title } = parsed.data;
   const doc = (
     await db.select().from(documents).where(eq(documents.id, id))
-  ).at(0);
+  )[0];
   if (!doc) return res.status(404).json({ error: "Document not found" });
 
   const updated = await db
@@ -117,7 +117,7 @@ router.delete("/:id", async (req, res) => {
 
   const doc = (
     await db.select().from(documents).where(eq(documents.id, id))
-  ).at(0);
+  )[0];
   if (!doc) return res.status(404).json({ error: "Document not found" });
 
   await db.delete(documents).where(eq(documents.id, id));
@@ -135,7 +135,7 @@ router.get("/:id/versions", async (req, res) => {
 
   const doc = (
     await db.select().from(documents).where(eq(documents.id, id))
-  ).at(0);
+  )[0];
   if (!doc) return res.status(404).json({ error: "Document not found" });
 
   const versions = await getDocumentVersions(id);
@@ -153,7 +153,7 @@ router.get("/:id/versions/:version", async (req, res) => {
 
   const doc = (
     await db.select().from(documents).where(eq(documents.id, id))
-  ).at(0);
+  )[0];
   if (!doc) return res.status(404).json({ error: "Document not found" });
 
   const versionData = await getDocumentVersion(id, version);

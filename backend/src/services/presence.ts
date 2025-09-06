@@ -25,7 +25,10 @@ export async function listPresence(
   docId: number
 ): Promise<Array<{ id: string; username: string }>> {
   const map = await redis.hgetall(presenceSet(docId));
-  return Object.entries(map).map(([id, username]) => ({ id, username }));
+  return Object.entries(map).map(([id, username]) => ({
+    id,
+    username: username as string,
+  }));
 }
 
 export async function setCursor(
@@ -60,7 +63,7 @@ export async function getCursors(docId: number): Promise<
 
   for (const [id, json] of Object.entries(map)) {
     try {
-      const cursor = JSON.parse(json);
+      const cursor = JSON.parse(json as string);
       const username = presence[id] || "Unknown";
       result.push({ userId: id, username, ...cursor });
     } catch {}
@@ -81,7 +84,8 @@ export async function countPresenceForDocs(
   const counts: Record<number, number> = {};
   let i = 0;
   for (const id of docIds) {
-    const [, value] = results[i++] ?? [];
+    const result = results?.[i++];
+    const [, value] = result ?? [];
     counts[id] = typeof value === "number" ? value : 0;
   }
   return counts;

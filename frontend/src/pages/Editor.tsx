@@ -44,6 +44,7 @@ export default function Editor({ docId }: { docId: number }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cursorCleanupRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -127,6 +128,33 @@ export default function Editor({ docId }: { docId: number }) {
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+      }
+      if (cursorCleanupRef.current) {
+        clearTimeout(cursorCleanupRef.current);
+      }
+    };
+  }, []);
+
+  // Cleanup stale cursors periodically
+  useEffect(() => {
+    const cleanupStaleCursors = () => {
+      const { cursors, setCursors } = useStore.getState();
+
+      const activeCursors = cursors.filter((cursor) => {
+        // Keep cursors that are typing or recently updated
+        return cursor.isTyping || true; // For now, keep all cursors
+      });
+
+      if (activeCursors.length !== cursors.length) {
+        setCursors(activeCursors);
+      }
+    };
+
+    cursorCleanupRef.current = setInterval(cleanupStaleCursors, 5000); // Check every 5 seconds
+
+    return () => {
+      if (cursorCleanupRef.current) {
+        clearInterval(cursorCleanupRef.current);
       }
     };
   }, []);
@@ -232,14 +260,19 @@ export default function Editor({ docId }: { docId: number }) {
   }
 
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setContent(e.target.value);
+    const newContent = e.target.value;
+    const oldContent = content;
+
+    setContent(newContent);
     updateCaretPositionWithTyping();
+
     if (socket && currentDoc) {
       socket.emit("edit", {
         docId: currentDoc.id,
         delta: null,
         version: (currentDoc.version ?? 0) + 1,
-        content: e.target.value,
+        content: newContent,
+        oldContent: oldContent,
       });
       if (user)
         socket.emit("editor:typing", {

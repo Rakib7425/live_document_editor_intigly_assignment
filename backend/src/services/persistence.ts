@@ -49,7 +49,7 @@ export async function getDocumentSnapshot(
       .select({ content: documents.content, version: documents.version })
       .from(documents)
       .where(eq(documents.id, documentId))
-  ).at(0);
+  )[0];
   if (!row) return null;
   return row;
 }
