@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "serve": "cd appServer && yarn && yarn run start",
+    "build-and-serve": "tsc -b && vite build && cd appServer && yarn && yarn run start",
     "lint": "eslint .",
     "preview": "vite preview"
   },

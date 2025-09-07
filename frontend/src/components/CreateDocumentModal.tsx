@@ -15,17 +15,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const defaultTemplates = [
-  {
-    id: 0,
-    name: "Blank Document",
-    description: "Start from scratch with a clean document",
-    icon: FileText,
-    color: "blue",
-    category: "General",
-  },
-];
-
 type Template = {
   id: number;
   name: string;
@@ -197,7 +186,7 @@ export default function CreateDocumentModal() {
               onClick={() => {
                 setShowCreateModal(false);
                 setTitle("");
-                setSelectedTemplate("blank");
+                setSelectedTemplate(0);
               }}
               className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
             >

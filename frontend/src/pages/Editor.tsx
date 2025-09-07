@@ -10,7 +10,7 @@ import {
   ArrowLeft,
   Edit3,
   Trash2,
-  Settings,
+  // Settings,
   Users,
   MessageCircle,
   Send,
@@ -99,7 +99,12 @@ export default function Editor({ docId }: { docId: number }) {
   // Listen for remote edits with cursor position preservation
   useEffect(() => {
     const handleRemoteEdit = (event: CustomEvent) => {
-      const { userId, content: remoteContent, version, operations } = event.detail;
+      const {
+        userId,
+        content: remoteContent,
+        version,
+        // operations,
+      } = event.detail;
 
       // Don't apply our own edits
       if (userId === socket?.id) return;
@@ -108,18 +113,28 @@ export default function Editor({ docId }: { docId: number }) {
       if (remoteContent !== undefined && textareaRef.current) {
         // Store current cursor position before update
         const currentCursorIndex = textareaRef.current.selectionStart;
-        const currentLineColumn = indexToLineColumn(content, currentCursorIndex);
-        
+        const currentLineColumn = indexToLineColumn(
+          content,
+          currentCursorIndex
+        );
+
         setContent(remoteContent);
         if (currentDoc) {
           setCurrentDoc({ ...currentDoc, content: remoteContent, version });
         }
-        
+
         // Restore cursor position after content update
         requestAnimationFrame(() => {
           if (textareaRef.current) {
-            const newCursorIndex = lineColumnToIndex(remoteContent, currentLineColumn.line, currentLineColumn.column);
-            textareaRef.current.setSelectionRange(newCursorIndex, newCursorIndex);
+            const newCursorIndex = lineColumnToIndex(
+              remoteContent,
+              currentLineColumn.line,
+              currentLineColumn.column
+            );
+            textareaRef.current.setSelectionRange(
+              newCursorIndex,
+              newCursorIndex
+            );
             updateCaretPosition();
           }
         });
@@ -158,7 +173,7 @@ export default function Editor({ docId }: { docId: number }) {
       const activeCursors = cursors.filter((cursor) => {
         // Keep cursors that are typing or recently updated
         if (cursor.isTyping) return true;
-        if (cursor.timestamp && (now - cursor.timestamp) < maxAge) return true;
+        if (cursor.timestamp && now - cursor.timestamp < maxAge) return true;
         return false;
       });
 
@@ -177,26 +192,33 @@ export default function Editor({ docId }: { docId: number }) {
   }, []);
 
   // Convert character index to line and column position
-  function indexToLineColumn(text: string, index: number): { line: number; column: number } {
-    const lines = text.substring(0, index).split('\n');
+  function indexToLineColumn(
+    text: string,
+    index: number
+  ): { line: number; column: number } {
+    const lines = text.substring(0, index).split("\n");
     return {
       line: lines.length - 1,
-      column: lines[lines.length - 1].length
+      column: lines[lines.length - 1].length,
     };
   }
 
   // Convert line and column position back to character index
-  function lineColumnToIndex(text: string, line: number, column: number): number {
-    const lines = text.split('\n');
+  function lineColumnToIndex(
+    text: string,
+    line: number,
+    column: number
+  ): number {
+    const lines = text.split("\n");
     if (line >= lines.length) {
       return text.length;
     }
-    
+
     let index = 0;
     for (let i = 0; i < line; i++) {
       index += lines[i].length + 1; // +1 for newline character
     }
-    
+
     return Math.min(index + column, index + lines[line].length);
   }
 
@@ -208,59 +230,72 @@ export default function Editor({ docId }: { docId: number }) {
     if (!textarea) return { x: 0, y: 0 };
 
     // Create mirror element with exact same styles
-    const mirror = document.createElement('div');
+    const mirror = document.createElement("div");
     const style = getComputedStyle(textarea);
-    
+
     // Copy all text-related styles
     const textStyles = [
-      'font-family', 'font-size', 'font-weight', 'font-style',
-      'line-height', 'letter-spacing', 'word-spacing',
-      'padding-left', 'padding-top', 'padding-right', 'padding-bottom',
-      'border-left-width', 'border-top-width', 'border-right-width', 'border-bottom-width',
-      'white-space', 'word-wrap', 'overflow-wrap'
+      "font-family",
+      "font-size",
+      "font-weight",
+      "font-style",
+      "line-height",
+      "letter-spacing",
+      "word-spacing",
+      "padding-left",
+      "padding-top",
+      "padding-right",
+      "padding-bottom",
+      "border-left-width",
+      "border-top-width",
+      "border-right-width",
+      "border-bottom-width",
+      "white-space",
+      "word-wrap",
+      "overflow-wrap",
     ];
-    
-    textStyles.forEach(prop => {
+
+    textStyles.forEach((prop) => {
       mirror.style.setProperty(prop, style.getPropertyValue(prop));
     });
-    
+
     // Position mirror off-screen but visible for measurement
-    mirror.style.position = 'absolute';
-    mirror.style.top = '-9999px';
-    mirror.style.left = '-9999px';
-    mirror.style.width = textarea.clientWidth + 'px';
-    mirror.style.height = 'auto';
-    mirror.style.visibility = 'hidden';
-    mirror.style.pointerEvents = 'none';
-    
+    mirror.style.position = "absolute";
+    mirror.style.top = "-9999px";
+    mirror.style.left = "-9999px";
+    mirror.style.width = textarea.clientWidth + "px";
+    mirror.style.height = "auto";
+    mirror.style.visibility = "hidden";
+    mirror.style.pointerEvents = "none";
+
     document.body.appendChild(mirror);
-    
+
     try {
       // Split text at cursor position
       const textBeforeCursor = textarea.value.substring(0, cursorIndex);
-      const textAtCursor = textarea.value.charAt(cursorIndex) || ' ';
-      
+      const textAtCursor = textarea.value.charAt(cursorIndex) || " ";
+
       // Create content with a marker at cursor position
-      const beforeSpan = document.createElement('span');
+      const beforeSpan = document.createElement("span");
       beforeSpan.textContent = textBeforeCursor;
-      
-      const cursorSpan = document.createElement('span');
+
+      const cursorSpan = document.createElement("span");
       cursorSpan.textContent = textAtCursor;
-      cursorSpan.style.backgroundColor = 'red';
-      cursorSpan.style.color = 'transparent';
-      
+      cursorSpan.style.backgroundColor = "red";
+      cursorSpan.style.color = "transparent";
+
       mirror.appendChild(beforeSpan);
       mirror.appendChild(cursorSpan);
-      
+
       // Get position relative to textarea
-      const textareaRect = textarea.getBoundingClientRect();
+      // const textareaRect = textarea.getBoundingClientRect();
       const cursorRect = cursorSpan.getBoundingClientRect();
       const mirrorRect = mirror.getBoundingClientRect();
-      
+
       // Calculate relative position
       const x = cursorRect.left - mirrorRect.left + parseInt(style.paddingLeft);
       const y = cursorRect.top - mirrorRect.top + parseInt(style.paddingTop);
-      
+
       return { x, y };
     } finally {
       document.body.removeChild(mirror);
@@ -272,10 +307,13 @@ export default function Editor({ docId }: { docId: number }) {
     if (textareaRef.current) {
       const cursorPosition = textareaRef.current.selectionStart;
       const { x, y } = getCursorPosition(textareaRef.current, cursorPosition);
-      const lineColumn = indexToLineColumn(textareaRef.current.value, cursorPosition);
-      
+      const lineColumn = indexToLineColumn(
+        textareaRef.current.value,
+        cursorPosition
+      );
+
       setCaretPosition({ x, y });
-      
+
       // Broadcast cursor movement with line/column info
       if (socket && currentDoc) {
         socket.emit("cursor", {
@@ -296,8 +334,11 @@ export default function Editor({ docId }: { docId: number }) {
     if (textareaRef.current) {
       const cursorPosition = textareaRef.current.selectionStart;
       const { x, y } = getCursorPosition(textareaRef.current, cursorPosition);
-      const lineColumn = indexToLineColumn(textareaRef.current.value, cursorPosition);
-      
+      const lineColumn = indexToLineColumn(
+        textareaRef.current.value,
+        cursorPosition
+      );
+
       setCaretPosition({ x, y });
 
       // Emit cursor position with line/column info and typing indicator
@@ -321,9 +362,15 @@ export default function Editor({ docId }: { docId: number }) {
         typingTimeoutRef.current = setTimeout(() => {
           if (socket && currentDoc && textareaRef.current) {
             const updatedPosition = textareaRef.current.selectionStart;
-            const updatedLineColumn = indexToLineColumn(textareaRef.current.value, updatedPosition);
-            const updatedCoords = getCursorPosition(textareaRef.current, updatedPosition);
-            
+            const updatedLineColumn = indexToLineColumn(
+              textareaRef.current.value,
+              updatedPosition
+            );
+            const updatedCoords = getCursorPosition(
+              textareaRef.current,
+              updatedPosition
+            );
+
             socket.emit("cursor", {
               docId: currentDoc.id,
               x: updatedCoords.x,
@@ -564,9 +611,9 @@ export default function Editor({ docId }: { docId: number }) {
                 <Trash2 className="w-5 h-5" />
               </button>
             )}
-            <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            {/* <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
               <Settings className="w-5 h-5" />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

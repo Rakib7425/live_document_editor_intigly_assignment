@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore, type Doc } from "../store/store";
@@ -19,10 +19,9 @@ import {
   MoreHorizontal,
   Share2,
   Edit3,
+  SearchX,
+  RefreshCw,
 } from "lucide-react";
-import ActiveCollaborators from "../components/ActiveCollaborators";
-import { getAvatarColor } from "../utils/getAvatarColor";
-import { getInitials } from "../utils/getInitials";
 
 export default function Documents() {
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -117,7 +116,7 @@ export default function Documents() {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (q !== "") load();
+      load(); // Always reload when search query changes
     }, 300);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,7 +160,54 @@ export default function Documents() {
     return docDate.toLocaleDateString();
   }
 
-  if (docs.length === 0 && !loading) {
+  function getInitials(username: string) {
+    return username.charAt(0).toUpperCase();
+  }
+
+  function getAvatarColor(username: string) {
+    const colors = [
+      "bg-red-500",
+      "bg-green-500",
+      "bg-blue-500",
+      "bg-purple-500",
+      "bg-yellow-500",
+      "bg-pink-500",
+    ];
+    const index = username.charCodeAt(0) % colors.length;
+    return colors[index];
+  }
+
+  // Filter and sort documents
+  const filteredAndSortedDocs = React.useMemo(() => {
+    let filtered = docs;
+
+    // Apply filtering
+    if (filterBy === "owned") {
+      filtered = docs.filter((doc) => doc.ownerUserName === user?.username);
+    } else if (filterBy === "shared") {
+      filtered = docs.filter((doc) => doc.ownerUserName !== user?.username);
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return (a.title || "").localeCompare(b.title || "");
+        case "author":
+          return (a.ownerUserName || "").localeCompare(b.ownerUserName || "");
+        case "recent":
+        default:
+          const dateA = new Date(a.updatedAt || a.createdAt || "").getTime();
+          const dateB = new Date(b.updatedAt || b.createdAt || "").getTime();
+          return dateB - dateA; // Most recent first
+      }
+    });
+
+    return sorted;
+  }, [docs, filterBy, sortBy, user?.username]);
+
+  // Show welcome screen only if there are truly no documents AND no search is active
+  if (docs.length === 0 && !loading && !q) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         {/* Header */}
@@ -222,7 +268,7 @@ export default function Documents() {
                 <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 Create New Document
               </button>
-              <div className="relative">
+              {/* <div className="relative">
                 <input
                   type="text"
                   value={q}
@@ -231,7 +277,7 @@ export default function Documents() {
                   className="w-full sm:w-80 pl-12 pr-4 py-4 bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -396,6 +442,7 @@ export default function Documents() {
         </div>
 
         {/* Active Collaborators */}
+
         {/* <ActiveCollaborators activeUsers={activeUsers} user={user} /> */}
 
         {/* Controls */}
@@ -526,6 +573,87 @@ export default function Documents() {
               </div>
             ))}
           </div>
+        ) : filteredAndSortedDocs.length === 0 ? (
+          // No documents found fallback
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <SearchX className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {q && filterBy !== "all"
+                ? `No documents found for "${q}" in ${
+                    filterBy === "owned"
+                      ? "documents you own"
+                      : "shared documents"
+                  }`
+                : q
+                ? `No documents found for "${q}"`
+                : filterBy === "owned"
+                ? "No documents owned by you"
+                : filterBy === "shared"
+                ? "No documents shared with you"
+                : "No documents found"}
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md">
+              {q ? (
+                <>
+                  Try adjusting your search terms or{" "}
+                  <button
+                    onClick={() => setQ("")}
+                    className="text-blue-600 hover:text-blue-700 underline font-medium"
+                  >
+                    clear the search
+                  </button>{" "}
+                  to see all documents.
+                </>
+              ) : filterBy !== "all" ? (
+                <>
+                  Try changing your filter to{" "}
+                  <button
+                    onClick={() => setFilterBy("all")}
+                    className="text-blue-600 hover:text-blue-700 underline font-medium"
+                  >
+                    show all documents
+                  </button>
+                  .
+                </>
+              ) : docs.length > 0 ? (
+                "No documents match your current criteria. Try adjusting your filters or search terms."
+              ) : (
+                "Start by creating your first document."
+              )}
+            </p>
+            {q && docs.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 max-w-md">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Search Tips:
+                </h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Try different keywords or shorter terms</li>
+                  <li>• Check for typos in your search</li>
+                  <li>• Use partial words (e.g., "meet" for "meeting")</li>
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-3">
+              {q && (
+                <button
+                  onClick={() => setQ("")}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Clear Search
+                </button>
+              )}
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create Document
+              </button>
+            </div>
+          </div>
         ) : (
           <div
             className={
@@ -534,7 +662,7 @@ export default function Documents() {
                 : "space-y-4"
             }
           >
-            {docs.map((doc) =>
+            {filteredAndSortedDocs.map((doc) =>
               viewMode === "grid" ? (
                 <div
                   key={doc.id}

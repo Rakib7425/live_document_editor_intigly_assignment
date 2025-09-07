@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Link, useParams } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Documents from "./pages/Documents";
@@ -26,8 +26,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
-  const user = useStore((s) => s.user);
-  const logout = useStore((s) => s.logout);
+  // const user = useStore((s) => s.user);
+  // const logout = useStore((s) => s.logout);
   const initializeUser = useStore((s) => s.initializeUser);
 
   useEffect(() => {

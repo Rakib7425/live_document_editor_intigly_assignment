@@ -19,6 +19,22 @@ const createSchema = z.object({
   templateId: z.number().optional(),
 });
 
+// Get document templates - MUST be before /:id routes
+router.get("/templates", async (req, res) => {
+  const templates = await db
+    .select({
+      id: documentTemplates.id,
+      name: documentTemplates.name,
+      description: documentTemplates.description,
+      category: documentTemplates.category,
+    })
+    .from(documentTemplates)
+    .where(eq(documentTemplates.isActive, true))
+    .orderBy(documentTemplates.category, documentTemplates.name);
+  
+  return res.json(templates);
+});
+
 router.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
@@ -177,20 +193,5 @@ router.get("/:id/versions/:version", async (req, res) => {
   return res.json(versionData);
 });
 
-// Get document templates
-router.get("/templates", async (req, res) => {
-  const templates = await db
-    .select({
-      id: documentTemplates.id,
-      name: documentTemplates.name,
-      description: documentTemplates.description,
-      category: documentTemplates.category,
-    })
-    .from(documentTemplates)
-    .where(eq(documentTemplates.isActive, true))
-    .orderBy(documentTemplates.category, documentTemplates.name);
-  
-  return res.json(templates);
-});
 
 export default router;
