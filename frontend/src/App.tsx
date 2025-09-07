@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Documents from "./pages/Documents";
 import Editor from "./pages/Editor";
@@ -24,8 +25,30 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [isInitializing, setIsInitializing] = useState(true);
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
+  const initializeUser = useStore((s) => s.initializeUser);
+
+  useEffect(() => {
+    const init = async () => {
+      await initializeUser();
+      setIsInitializing(false);
+    };
+    init();
+  }, [initializeUser]);
+
+  // Show loading spinner during initialization
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

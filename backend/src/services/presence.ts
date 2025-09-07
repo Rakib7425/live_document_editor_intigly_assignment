@@ -47,6 +47,8 @@ export async function getCursors(docId: number): Promise<
     x?: number;
     y?: number;
     index?: number;
+    line?: number;
+    column?: number;
     isTyping?: boolean;
   }>
 > {
@@ -58,6 +60,8 @@ export async function getCursors(docId: number): Promise<
     x?: number;
     y?: number;
     index?: number;
+    line?: number;
+    column?: number;
     isTyping?: boolean;
   }> = [];
 

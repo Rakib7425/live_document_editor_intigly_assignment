@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import http from "http";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
 import authRouter from "./routes/auth.js";
 import docsRouter from "./routes/documents.js";
@@ -24,6 +25,7 @@ import {
   markUserActive,
   markUserInactive,
   heartbeatUser,
+  listActiveUsers,
 } from "./services/presenceGlobal.js";
 import {
   startDocumentSession,
@@ -35,7 +37,11 @@ import { isRedisDBConnected, redisConfig } from "./redis/redis.js";
 import { isPostgresDBConnected } from "./db/client.js";
 
 const app = express();
-app.use(cors());
+app.use(cors({ 
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true 
+}));
+app.use(cookieParser());
 app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/documents", docsRouter);
@@ -47,7 +53,10 @@ app.get("/health", (_req, res) => {
 
 const server = http.createServer(app);
 export const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: { 
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true 
+  },
 });
 
 // const redisUrl = process.env.REDIS_URL || `redis://${redisConfig.username}:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
@@ -78,12 +87,22 @@ io.on("connection", (socket) => {
     if (!username) return;
     await markUserActive(username, socket.id);
     socket.data.username = username;
+    
+    // Broadcast updated active users list to all clients
+    const activeUsers = await listActiveUsers();
+    io.emit('active-users:update', activeUsers);
   });
 
   socket.on("active:heartbeat", async () => {
     if (socket.data?.username) {
       await heartbeatUser(socket.data.username, socket.id);
     }
+  });
+
+  // Handle request for active users list
+  socket.on("request:active-users", async () => {
+    const activeUsers = await listActiveUsers();
+    socket.emit('active-users:update', activeUsers);
   });
 
   // Add document presence heartbeat
@@ -153,12 +172,16 @@ io.on("connection", (socket) => {
       x,
       y,
       index,
+      line,
+      column,
       isTyping,
     }: {
       docId: number;
       x?: number;
       y?: number;
       index?: number;
+      line?: number;
+      column?: number;
       isTyping: boolean;
     }) => {
       if (!socket.data?.username) return;
@@ -167,6 +190,8 @@ io.on("connection", (socket) => {
         x,
         y,
         index,
+        line,
+        column,
         isTyping,
         username: socket.data.username,
       });
@@ -176,6 +201,8 @@ io.on("connection", (socket) => {
         x,
         y,
         index,
+        line,
+        column,
         isTyping,
       });
     }
@@ -262,6 +289,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     if (socket.data?.username) {
       await markUserInactive(socket.data.username, socket.id);
+      
+      // Broadcast updated active users list to all clients
+      const activeUsers = await listActiveUsers();
+      io.emit('active-users:update', activeUsers);
     }
 
     // Clean up presence from all documents this socket was in

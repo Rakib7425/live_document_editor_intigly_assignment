@@ -5,6 +5,7 @@ import {
   timestamp,
   varchar,
   integer,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -59,4 +60,19 @@ export const documentVersions = pgTable("document_versions", {
   createdBy: integer("created_by").references(() => users.id, {
     onDelete: "set null",
   }),
+});
+
+export const documentTemplates = pgTable("document_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  content: text("content").notNull().default(""),
+  category: varchar("category", { length: 64 }).default("General"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: false })
+    .defaultNow()
+    .notNull(),
 });

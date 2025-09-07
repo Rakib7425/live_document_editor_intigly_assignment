@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/client.js";
-import { documents, chatMessages, users } from "../db/schema.js";
+import { documents, chatMessages, users, documentTemplates } from "../db/schema.js";
 import { countPresenceForDocs } from "../services/presence.js";
 import {
   getDocumentVersions,
@@ -16,15 +16,30 @@ const createSchema = z.object({
   title: z.string().min(1).max(256),
   ownerId: z.number().optional(),
   ownerUserName: z.string().optional(),
+  templateId: z.number().optional(),
 });
 
 router.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
-  const { title, ownerId, ownerUserName } = parsed.data;
+  const { title, ownerId, ownerUserName, templateId } = parsed.data;
+  
+  // Get template content if templateId is provided
+  let content = "";
+  if (templateId) {
+    const template = await db
+      .select({ content: documentTemplates.content })
+      .from(documentTemplates)
+      .where(and(eq(documentTemplates.id, templateId), eq(documentTemplates.isActive, true)))
+      .limit(1);
+    if (template.length > 0) {
+      content = template[0]!.content;
+    }
+  }
+  
   const inserted = await db
     .insert(documents)
-    .values({ title, ownerId, ownerUserName })
+    .values({ title, ownerId, ownerUserName, content })
     .returning({ id: documents.id });
 
   const newDoc = {
@@ -160,6 +175,22 @@ router.get("/:id/versions/:version", async (req, res) => {
   if (!versionData) return res.status(404).json({ error: "Version not found" });
 
   return res.json(versionData);
+});
+
+// Get document templates
+router.get("/templates", async (req, res) => {
+  const templates = await db
+    .select({
+      id: documentTemplates.id,
+      name: documentTemplates.name,
+      description: documentTemplates.description,
+      category: documentTemplates.category,
+    })
+    .from(documentTemplates)
+    .where(eq(documentTemplates.isActive, true))
+    .orderBy(documentTemplates.category, documentTemplates.name);
+  
+  return res.json(templates);
 });
 
 export default router;

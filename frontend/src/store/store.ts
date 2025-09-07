@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
+import { AuthAPI } from "../api";
 
 export type User = { id: number; username: string };
 export type Doc = {
@@ -31,7 +32,10 @@ type State = {
     x?: number;
     y?: number;
     index?: number;
+    line?: number;
+    column?: number;
     isTyping: boolean;
+    timestamp?: number;
   }>;
   showCreateModal: boolean;
 };
@@ -46,6 +50,8 @@ type Actions = {
   clearMessages: () => void;
   setShowCreateModal: (show: boolean) => void;
   setCursors: (cursors: State["cursors"]) => void;
+  verifySession: () => Promise<boolean>;
+  initializeUser: () => Promise<void>;
 };
 
 export const useStore = create<State & Actions>((set, get) => ({
@@ -55,20 +61,17 @@ export const useStore = create<State & Actions>((set, get) => ({
   showCreateModal: false,
 
   setUser: (u) => {
-    try {
-      localStorage.setItem("live_docs_user", JSON.stringify(u));
-    } catch {}
     set({ user: u });
   },
-  // Persist user in localStorage for reloads
-  // Restore on app start happens in main/App via reading localStorage (added below)
 
-  logout: () => {
+  logout: async () => {
     const { socket } = get();
     socket?.close();
     try {
-      localStorage.removeItem("live_docs_user");
-    } catch {}
+      await AuthAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     set({
       user: undefined,
       socket: undefined,
@@ -81,24 +84,24 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   connectSocket: () => {
-    const { socket, user } = get();
-    if (socket) return;
+    const state = get();
+    if (state.socket) return;
 
-    const s = io(import.meta.env.VITE_APP_API_URL || "http://localhost:4000");
-
-    s.on("connect", () => {
-      let u = user;
-      if (!u) {
-        try {
-          const raw = localStorage.getItem("live_docs_user");
-          if (raw) u = JSON.parse(raw);
-        } catch {}
-        if (u) set({ user: u });
-      }
-      if (u) s.emit("active:login", { username: u.username });
+    const s = io(import.meta.env.VITE_APP_API_URL || "http://localhost:4000", {
+      withCredentials: true
     });
 
-    s.on("chat:message", (m) => set({ messages: [...get().messages, m] }));
+    s.on("connect", () => {
+      const currentUser = get().user;
+      if (currentUser) {
+        s.emit("active:login", { username: currentUser.username });
+      }
+    });
+
+    s.on("chat:message", (m) => {
+      const currentMessages = get().messages;
+      set({ messages: [...currentMessages, m] });
+    });
 
     s.on(
       "presence:update",
@@ -156,23 +159,34 @@ export const useStore = create<State & Actions>((set, get) => ({
         x?: number;
         y?: number;
         index?: number;
+        line?: number;
+        column?: number;
         isTyping: boolean;
       }) => {
-        const { cursors } = get();
-        const safeCursors = Array.isArray(cursors) ? cursors : [];
-        const updatedCursors = safeCursors.filter(
-          (c) => c.userId !== cursorData.userId
-        );
-        // Always add cursor data, regardless of typing status
-        updatedCursors.push(cursorData);
-        set({ cursors: updatedCursors });
+        set((state) => {
+          const safeCursors = Array.isArray(state.cursors) ? state.cursors : [];
+          const filteredCursors = safeCursors.filter(
+            (c) => c.userId !== cursorData.userId
+          );
+          return {
+            cursors: [
+              ...filteredCursors,
+              {
+                ...cursorData,
+                timestamp: Date.now()
+              }
+            ]
+          };
+        });
       }
     );
 
     s.on("cursor:remove", (userId: string) => {
-      const { cursors } = get();
-      const safeCursors = Array.isArray(cursors) ? cursors : [];
-      set({ cursors: safeCursors.filter((c) => c.userId !== userId) });
+      set((state) => ({
+        cursors: Array.isArray(state.cursors) 
+          ? state.cursors.filter((c) => c.userId !== userId)
+          : []
+      }));
     });
 
     s.on("document:updated", (updateData: { id: number; title: string }) => {
@@ -206,4 +220,23 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   setCursors: (cursors) =>
     set({ cursors: Array.isArray(cursors) ? cursors : [] }),
+
+  verifySession: async () => {
+    try {
+      const user = await AuthAPI.verify();
+      set({ user });
+      return true;
+    } catch (error) {
+      console.log('No valid session found');
+      return false;
+    }
+  },
+
+  initializeUser: async () => {
+    const { verifySession, connectSocket } = get();
+    const hasValidSession = await verifySession();
+    if (hasValidSession) {
+      connectSocket();
+    }
+  },
 }));

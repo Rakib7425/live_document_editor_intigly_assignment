@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore, type Doc } from "../store/store";
 import CreateDocumentModal from "../components/CreateDocumentModal";
-import { 
-  Search, 
-  Plus, 
-  FileText, 
-  Users, 
-  Clock, 
+import {
+  Search,
+  Plus,
+  FileText,
+  Users,
+  Clock,
   Filter,
   Grid,
   List,
@@ -18,25 +18,34 @@ import {
   LogOut,
   MoreHorizontal,
   Share2,
-  Edit3
+  Edit3,
 } from "lucide-react";
+import ActiveCollaborators from "../components/ActiveCollaborators";
+import { getAvatarColor } from "../utils/getAvatarColor";
+import { getInitials } from "../utils/getInitials";
 
 export default function Documents() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'author'>('recent');
-  const [filterBy, setFilterBy] = useState<'all' | 'owned' | 'shared'>('all');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<"recent" | "name" | "author">("recent");
+  const [filterBy, setFilterBy] = useState<"all" | "owned" | "shared">("all");
+  const [activeUsers, setActiveUsers] = useState<string[]>([]);
   const user = useStore((s) => s.user);
+  const socket = useStore((s) => s.socket);
   const logout = useStore((s) => s.logout);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
+
+  // Use stable references for functions that don't change
+  const connectSocket = useStore(useCallback((s) => s.connectSocket, []));
+
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
-    navigate('/login');
-  };
+    navigate("/login");
+  }, [logout, navigate]);
 
   async function load() {
     setLoading(true);
@@ -99,6 +108,13 @@ export default function Documents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Separate effect for socket connection to avoid dependency issues
+  useEffect(() => {
+    if (!socket && user) {
+      connectSocket();
+    }
+  }, [socket, user, connectSocket]);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (q !== "") load();
@@ -106,6 +122,31 @@ export default function Documents() {
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
+
+  // Socket effect for active users
+  useEffect(() => {
+    if (socket && user) {
+      // Request initial active users list
+      socket.emit("request:active-users");
+
+      // Listen for active users updates
+      const handleActiveUsersUpdate = (users: string[]) => {
+        setActiveUsers(users);
+      };
+
+      socket.on("active-users:update", handleActiveUsersUpdate);
+
+      // Set up heartbeat for global presence
+      const heartbeatInterval = setInterval(() => {
+        socket.emit("active:heartbeat");
+      }, 20_000); // Every 20 seconds
+
+      return () => {
+        socket.off("active-users:update", handleActiveUsersUpdate);
+        clearInterval(heartbeatInterval);
+      };
+    }
+  }, [socket, user]);
 
   function getTimeAgo(date: string) {
     const now = new Date();
@@ -118,23 +159,6 @@ export default function Documents() {
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInHours < 48) return "yesterday";
     return docDate.toLocaleDateString();
-  }
-
-  function getInitials(username: string) {
-    return username.charAt(0).toUpperCase();
-  }
-
-  function getAvatarColor(username: string) {
-    const colors = [
-      "bg-red-500",
-      "bg-green-500",
-      "bg-blue-500",
-      "bg-purple-500",
-      "bg-yellow-500",
-      "bg-pink-500",
-    ];
-    const index = username.charCodeAt(0) % colors.length;
-    return colors[index];
   }
 
   if (docs.length === 0 && !loading) {
@@ -150,7 +174,9 @@ export default function Documents() {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Live Docs</h1>
-                  <p className="text-sm text-gray-500">Welcome back, {user?.username}</p>
+                  <p className="text-sm text-gray-500">
+                    Welcome back, {user?.username}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -184,9 +210,10 @@ export default function Documents() {
               Create your first document
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-              Start collaborating with your team in real-time. Create documents, share ideas, and build something amazing together.
+              Start collaborating with your team in real-time. Create documents,
+              share ideas, and build something amazing together.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -218,10 +245,11 @@ export default function Documents() {
                 Real-time Editing
               </h3>
               <p className="text-gray-600">
-                See changes as they happen. Collaborate seamlessly with your team members in real-time.
+                See changes as they happen. Collaborate seamlessly with your
+                team members in real-time.
               </p>
             </div>
-            
+
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-sm hover:shadow-lg transition-all duration-200">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-green-600" />
@@ -230,10 +258,11 @@ export default function Documents() {
                 Team Collaboration
               </h3>
               <p className="text-gray-600">
-                Invite team members, track presence, and work together on documents from anywhere.
+                Invite team members, track presence, and work together on
+                documents from anywhere.
               </p>
             </div>
-            
+
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-sm hover:shadow-lg transition-all duration-200">
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
                 <Share2 className="w-6 h-6 text-purple-600" />
@@ -242,7 +271,8 @@ export default function Documents() {
                 Easy Sharing
               </h3>
               <p className="text-gray-600">
-                Share documents instantly with your team. Control permissions and track document activity.
+                Share documents instantly with your team. Control permissions
+                and track document activity.
               </p>
             </div>
           </div>
@@ -265,7 +295,9 @@ export default function Documents() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Live Docs</h1>
-                <p className="text-sm text-gray-500">Welcome back, {user?.username}</p>
+                <p className="text-sm text-gray-500">
+                  Welcome back, {user?.username}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -297,68 +329,90 @@ export default function Documents() {
                 <FileText className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{docs.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {docs.length}
+                </p>
                 <p className="text-sm text-gray-600">Total Documents</p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/20">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{docs.filter(d => d.ownerUserName === user?.username).length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {
+                    docs.filter((d) => d.ownerUserName === user?.username)
+                      .length
+                  }
+                </p>
                 <p className="text-sm text-gray-600">Owned by You</p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/20">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Activity className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{docs.reduce((sum, d) => sum + (d.activeCount || 0), 0)}</p>
+                {/* docs.reduce((sum, d) => sum + (d.activeCount || 0), 0) */}
+                <p className="text-2xl font-bold text-gray-900">
+                  {activeUsers.length}
+                </p>
                 <p className="text-sm text-gray-600">Active Collaborators</p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/20">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{docs.filter(d => {
-                  const today = new Date();
-                  const docDate = new Date(d.updatedAt || d.createdAt || '');
-                  return today.getTime() - docDate.getTime() < 24 * 60 * 60 * 1000;
-                }).length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {
+                    docs.filter((d) => {
+                      const today = new Date();
+                      const docDate = new Date(
+                        d.updatedAt || d.createdAt || ""
+                      );
+                      return (
+                        today.getTime() - docDate.getTime() <
+                        24 * 60 * 60 * 1000
+                      );
+                    }).length
+                  }
+                </p>
                 <p className="text-sm text-gray-600">Updated Today</p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Active Collaborators */}
+        {/* <ActiveCollaborators activeUsers={activeUsers} user={user} /> */}
+
         {/* Controls */}
         <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/20 mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 max-w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search documents..."
-                className="w-full pl-10 pr-4 py-3 bg-white/70 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/70 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
-            
+
             {/* Filters and View Controls */}
             <div className="flex items-center gap-3">
               {/* Filter Dropdown */}
@@ -374,7 +428,7 @@ export default function Documents() {
                 </select>
                 <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
-              
+
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
@@ -387,21 +441,25 @@ export default function Documents() {
                   <option value="author">Author</option>
                 </select>
               </div>
-              
+
               {/* View Mode Toggle */}
               <div className="flex items-center bg-white/70 border border-gray-200 rounded-lg p-1">
                 <button
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => setViewMode("grid")}
                   className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                    viewMode === "grid"
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setViewMode('list')}
+                  onClick={() => setViewMode("list")}
                   className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                    viewMode === "list"
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
                   <List className="w-4 h-4" />
@@ -410,21 +468,23 @@ export default function Documents() {
             </div>
           </div>
         </div>
-
         {/* Documents Display */}
         {loading ? (
-          <div className={viewMode === 'grid' 
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-            : "space-y-4"
-          }>
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : "space-y-4"
+            }
+          >
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
                 className={`bg-white/70 backdrop-blur-sm border border-white/20 rounded-2xl animate-pulse ${
-                  viewMode === 'grid' ? 'p-6' : 'p-4 flex items-center gap-4'
+                  viewMode === "grid" ? "p-6" : "p-4 flex items-center gap-4"
                 }`}
               >
-                {viewMode === 'grid' ? (
+                {viewMode === "grid" ? (
                   <div className="space-y-4">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 bg-gray-200 rounded-xl" />
@@ -467,12 +527,15 @@ export default function Documents() {
             ))}
           </div>
         ) : (
-          <div className={viewMode === 'grid' 
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-            : "space-y-4"
-          }>
-            {docs.map((doc) => (
-              viewMode === 'grid' ? (
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : "space-y-4"
+            }
+          >
+            {docs.map((doc) =>
+              viewMode === "grid" ? (
                 <div
                   key={doc.id}
                   className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/20 p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-200 cursor-pointer group relative overflow-hidden"
@@ -480,7 +543,7 @@ export default function Documents() {
                 >
                   {/* Hover gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                  
+
                   <div className="relative z-10">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
@@ -522,7 +585,9 @@ export default function Documents() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          <span>{getTimeAgo(doc.updatedAt ?? doc.createdAt)}</span>
+                          <span>
+                            {getTimeAgo(doc.updatedAt ?? doc.createdAt)}
+                          </span>
                         </div>
                       </div>
 
@@ -555,7 +620,7 @@ export default function Documents() {
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
                       <FileText className="w-6 h-6 text-blue-600" />
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200 truncate">
                         {doc.title || "Untitled"}
@@ -564,7 +629,7 @@ export default function Documents() {
                         by {doc.ownerUserName || "admin"}
                       </p>
                     </div>
-                    
+
                     <div className="flex items-center gap-6 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
@@ -572,10 +637,12 @@ export default function Documents() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        <span>{getTimeAgo(doc.updatedAt ?? doc.createdAt)}</span>
+                        <span>
+                          {getTimeAgo(doc.updatedAt ?? doc.createdAt)}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex -space-x-2">
                       {Array.from({
                         length: Math.min(doc.activeCount || 0, 3),
@@ -590,17 +657,16 @@ export default function Documents() {
                         </div>
                       ))}
                     </div>
-                    
+
                     <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-all duration-200">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )
-            ))}
+            )}
           </div>
         )}
-
         <CreateDocumentModal />
       </div>
     </div>

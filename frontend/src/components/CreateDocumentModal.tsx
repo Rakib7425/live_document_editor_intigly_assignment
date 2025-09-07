@@ -1,80 +1,112 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DocsAPI } from "../api";
 import { useStore } from "../store/store";
-import { 
-  X, 
-  FileText, 
-  Loader2, 
+import {
+  X,
+  FileText,
+  Loader2,
   Sparkles,
   Users,
-  BookOpen,
   PenTool,
   Briefcase,
   Clipboard,
   Code,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
-const templates = [
+const defaultTemplates = [
   {
-    id: 'blank',
-    name: 'Blank Document',
-    description: 'Start from scratch with a clean document',
+    id: 0,
+    name: "Blank Document",
+    description: "Start from scratch with a clean document",
     icon: FileText,
-    color: 'blue',
-    content: ''
+    color: "blue",
+    category: "General",
   },
-  {
-    id: 'meeting-notes',
-    name: 'Meeting Notes',
-    description: 'Template for meeting minutes and action items',
-    icon: Users,
-    color: 'green',
-    content: `# Meeting Notes\n\n**Date:** ${new Date().toLocaleDateString()}\n**Attendees:** \n\n## Agenda\n\n## Discussion Points\n\n## Action Items\n\n## Next Steps\n`
-  },
-  {
-    id: 'project-plan',
-    name: 'Project Plan',
-    description: 'Organize project goals, timeline, and deliverables',
-    icon: Briefcase,
-    color: 'purple',
-    content: `# Project Plan\n\n## Overview\n\n## Objectives\n\n## Timeline\n\n## Deliverables\n\n## Resources\n\n## Risk Assessment\n`
-  },
-  {
-    id: 'documentation',
-    name: 'Technical Documentation',
-    description: 'Document APIs, processes, or technical specifications',
-    icon: Code,
-    color: 'indigo',
-    content: `# Technical Documentation\n\n## Overview\n\n## Prerequisites\n\n## Installation\n\n## Usage\n\n## API Reference\n\n## Examples\n\n## Troubleshooting\n`
-  },
-  {
-    id: 'checklist',
-    name: 'Task Checklist',
-    description: 'Create organized to-do lists and checklists',
-    icon: Clipboard,
-    color: 'orange',
-    content: `# Task Checklist\n\n## Today\n- [ ] \n- [ ] \n\n## This Week\n- [ ] \n- [ ] \n\n## Completed\n- [x] Example completed task\n`
-  },
-  {
-    id: 'creative',
-    name: 'Creative Writing',
-    description: 'Perfect for stories, articles, and creative content',
-    icon: PenTool,
-    color: 'pink',
-    content: `# Creative Writing\n\n## Inspiration\n\n## Outline\n\n## Draft\n\n## Notes\n`
-  }
 ];
+
+type Template = {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  icon: any;
+  color: string;
+};
+
+const getTemplateIcon = (category: string, name: string) => {
+  if (name.includes("Meeting")) return Users;
+  if (name.includes("Project")) return Briefcase;
+  if (name.includes("Technical") || name.includes("Documentation")) return Code;
+  if (name.includes("Checklist") || name.includes("Task")) return Clipboard;
+  if (name.includes("Creative") || name.includes("Writing")) return PenTool;
+  if (category === "Business") return Briefcase;
+  if (category === "Technical") return Code;
+  if (category === "Productivity") return Clipboard;
+  if (category === "Creative") return PenTool;
+  return FileText;
+};
+
+const getTemplateColor = (category: string) => {
+  const colorMap: Record<string, string> = {
+    General: "blue",
+    Business: "green",
+    Technical: "indigo",
+    Productivity: "orange",
+    Creative: "pink",
+  };
+  return colorMap[category] || "blue";
+};
 
 export default function CreateDocumentModal() {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('blank');
+  const [selectedTemplate, setSelectedTemplate] = useState(0);
+  const [templates, setTemplates] = useState<Template[]>([
+    {
+      id: 0,
+      name: "Blank Document",
+      description: "Start from scratch with a clean document",
+      icon: FileText,
+      color: "blue",
+      category: "General",
+    },
+  ]);
   const showCreateModal = useStore((s) => s.showCreateModal);
   const setShowCreateModal = useStore((s) => s.setShowCreateModal);
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (showCreateModal) {
+      loadTemplates();
+    }
+  }, [showCreateModal]);
+
+  async function loadTemplates() {
+    try {
+      const backendTemplates = await DocsAPI.getTemplates();
+      const formattedTemplates: Template[] = [
+        {
+          id: 0,
+          name: "Blank Document",
+          description: "Start from scratch with a clean document",
+          icon: FileText,
+          color: "blue",
+          category: "General",
+        },
+        ...backendTemplates.map((t) => ({
+          ...t,
+          icon: getTemplateIcon(t.category, t.name),
+          color: getTemplateColor(t.category),
+        })),
+      ];
+      setTemplates(formattedTemplates);
+    } catch (error) {
+      console.error("Failed to load templates:", error);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -82,17 +114,16 @@ export default function CreateDocumentModal() {
 
     setLoading(true);
     try {
-      const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
-      const doc = await DocsAPI.create(title.trim(), user?.id, user?.username);
-      
-      // If template has content, we could send it to the backend or handle it on the editor page
-      // For now, we'll store it in localStorage to be picked up by the editor
-      if (selectedTemplateData?.content) {
-        localStorage.setItem(`template_content_${doc.id}`, selectedTemplateData.content);
-      }
-      
+      const templateId = selectedTemplate === 0 ? undefined : selectedTemplate;
+      const doc = await DocsAPI.create(
+        title.trim(),
+        user?.id,
+        user?.username,
+        templateId
+      );
+
       setTitle("");
-      setSelectedTemplate('blank');
+      setSelectedTemplate(0);
       setShowCreateModal(false);
       navigate(`/doc/${doc.id}`);
     } catch (error) {
@@ -103,13 +134,40 @@ export default function CreateDocumentModal() {
   }
 
   const getColorClasses = (color: string) => {
-    const colorMap: Record<string, { bg: string, text: string, border: string }> = {
-      blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-200' },
-      green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-200' },
-      purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-200' },
-      indigo: { bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-200' },
-      orange: { bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-200' },
-      pink: { bg: 'bg-pink-100', text: 'text-pink-600', border: 'border-pink-200' }
+    const colorMap: Record<
+      string,
+      { bg: string; text: string; border: string }
+    > = {
+      blue: {
+        bg: "bg-blue-100",
+        text: "text-blue-600",
+        border: "border-blue-200",
+      },
+      green: {
+        bg: "bg-green-100",
+        text: "text-green-600",
+        border: "border-green-200",
+      },
+      purple: {
+        bg: "bg-purple-100",
+        text: "text-purple-600",
+        border: "border-purple-200",
+      },
+      indigo: {
+        bg: "bg-indigo-100",
+        text: "text-indigo-600",
+        border: "border-indigo-200",
+      },
+      orange: {
+        bg: "bg-orange-100",
+        text: "text-orange-600",
+        border: "border-orange-200",
+      },
+      pink: {
+        bg: "bg-pink-100",
+        text: "text-pink-600",
+        border: "border-pink-200",
+      },
     };
     return colorMap[color] || colorMap.blue;
   };
@@ -138,8 +196,8 @@ export default function CreateDocumentModal() {
             <button
               onClick={() => {
                 setShowCreateModal(false);
-                setTitle('');
-                setSelectedTemplate('blank');
+                setTitle("");
+                setSelectedTemplate("blank");
               }}
               className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -165,7 +223,7 @@ export default function CreateDocumentModal() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Enter a descriptive title for your document..."
-                  className="w-full px-4 py-4 border border-gray-200 rounded-xl bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
                   autoFocus
                   maxLength={256}
                   disabled={loading}
@@ -183,7 +241,7 @@ export default function CreateDocumentModal() {
                   const Icon = template.icon;
                   const colors = getColorClasses(template.color);
                   const isSelected = selectedTemplate === template.id;
-                  
+
                   return (
                     <button
                       key={template.id}
@@ -191,23 +249,29 @@ export default function CreateDocumentModal() {
                       onClick={() => setSelectedTemplate(template.id)}
                       disabled={loading}
                       className={`p-4 rounded-xl border-2 transition-all duration-200 text-left hover:shadow-md ${
-                        isSelected 
-                          ? `${colors.border} ${colors.bg} shadow-md ring-2 ring-blue-500/20` 
-                          : 'border-gray-200 hover:border-gray-300 bg-white/50'
+                        isSelected
+                          ? `${colors.border} ${colors.bg} shadow-md ring-2 ring-blue-500/20`
+                          : "border-gray-200 hover:border-gray-300 bg-white/50"
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                          isSelected ? colors.bg : 'bg-gray-100'
-                        }`}>
-                          <Icon className={`w-6 h-6 ${
-                            isSelected ? colors.text : 'text-gray-600'
-                          }`} />
+                        <div
+                          className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            isSelected ? colors.bg : "bg-gray-100"
+                          }`}
+                        >
+                          <Icon
+                            className={`w-6 h-6 ${
+                              isSelected ? colors.text : "text-gray-600"
+                            }`}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold mb-1 ${
-                            isSelected ? 'text-gray-900' : 'text-gray-800'
-                          }`}>
+                          <h3
+                            className={`font-semibold mb-1 ${
+                              isSelected ? "text-gray-900" : "text-gray-800"
+                            }`}
+                          >
                             {template.name}
                           </h3>
                           <p className="text-sm text-gray-600 leading-relaxed">
@@ -231,15 +295,16 @@ export default function CreateDocumentModal() {
             {/* Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-200">
               <div className="text-sm text-gray-500">
-                {templates.find(t => t.id === selectedTemplate)?.name} selected
+                {templates.find((t) => t.id === selectedTemplate)?.name}{" "}
+                selected
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false);
-                    setTitle('');
-                    setSelectedTemplate('blank');
+                    setTitle("");
+                    setSelectedTemplate(0);
                   }}
                   className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium"
                   disabled={loading}
