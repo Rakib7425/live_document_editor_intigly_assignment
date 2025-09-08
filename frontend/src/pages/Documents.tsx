@@ -196,10 +196,11 @@ export default function Documents() {
         case "author":
           return (a.ownerUserName || "").localeCompare(b.ownerUserName || "");
         case "recent":
-        default:
+        default: {
           const dateA = new Date(a.updatedAt || a.createdAt || "").getTime();
           const dateB = new Date(b.updatedAt || b.createdAt || "").getTime();
-          return dateB - dateA; // Most recent first
+          return dateB - dateA;
+        } // Most recent first
       }
     });
 

@@ -1,4 +1,6 @@
 import "dotenv/config";
+import "./server-aliver.js";
+
 import cors from "cors";
 import express from "express";
 import path from "node:path";
