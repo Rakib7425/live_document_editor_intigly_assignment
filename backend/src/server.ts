@@ -32,15 +32,27 @@ import {
   updateDocumentSession,
   endDocumentSession,
 } from "./services/sessions.js";
-import { textToOperations, applyOperations, transformOperations } from "./services/operations.js";
+import {
+  textToOperations,
+  // applyOperations,
+  // transformOperations,
+} from "./services/operations.js";
 import { isRedisDBConnected, redisConfig } from "./redis/redis.js";
 import { isPostgresDBConnected } from "./db/client.js";
 
 const app = express();
-app.use(cors({ 
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  credentials: true 
-}));
+
+app.use(
+  cors({
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      process.env.BACKUP_FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:4173",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(cookieParser());
 app.use(express.json());
 app.use("/api/auth", authRouter);
@@ -53,9 +65,13 @@ app.get("/health", (_req, res) => {
 
 const server = http.createServer(app);
 export const io = new Server(server, {
-  cors: { 
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    credentials: true 
+  cors: {
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      process.env.BACKUP_FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:4173",
+    ],
+    credentials: true,
   },
 });
 
@@ -87,10 +103,10 @@ io.on("connection", (socket) => {
     if (!username) return;
     await markUserActive(username, socket.id);
     socket.data.username = username;
-    
+
     // Broadcast updated active users list to all clients
     const activeUsers = await listActiveUsers();
-    io.emit('active-users:update', activeUsers);
+    io.emit("active-users:update", activeUsers);
   });
 
   socket.on("active:heartbeat", async () => {
@@ -102,7 +118,7 @@ io.on("connection", (socket) => {
   // Handle request for active users list
   socket.on("request:active-users", async () => {
     const activeUsers = await listActiveUsers();
-    socket.emit('active-users:update', activeUsers);
+    socket.emit("active-users:update", activeUsers);
   });
 
   // Add document presence heartbeat
@@ -224,29 +240,33 @@ io.on("connection", (socket) => {
       oldContent?: string;
     }) => {
       const room = `doc:${docId}`;
-      
+
       // Get current document state
       const snapshot = await getDocumentSnapshot(docId);
       const currentContent = snapshot?.content || "";
-      
+
       // If oldContent is provided, use it for operation calculation
       const baseContent = oldContent || currentContent;
-      
+
       // Convert text changes to operations
       const operations = textToOperations(baseContent, content);
-      
+
       // Broadcast the edit with operations for conflict resolution
-      socket.to(room).emit("edit", { 
-        userId: socket.id, 
-        content, 
+      socket.to(room).emit("edit", {
+        userId: socket.id,
+        content,
         version,
         operations,
-        baseContent
+        baseContent,
       });
-      
+
       // Update document with conflict resolution
       const finalContent = content; // For now, use the new content directly
-      queueDocumentUpdate({ documentId: docId, content: finalContent, version });
+      queueDocumentUpdate({
+        documentId: docId,
+        content: finalContent,
+        version,
+      });
 
       // Update document session to track edits
       await updateDocumentSession(docId, finalContent);
@@ -289,10 +309,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     if (socket.data?.username) {
       await markUserInactive(socket.data.username, socket.id);
-      
+
       // Broadcast updated active users list to all clients
       const activeUsers = await listActiveUsers();
-      io.emit('active-users:update', activeUsers);
+      io.emit("active-users:update", activeUsers);
     }
 
     // Clean up presence from all documents this socket was in
