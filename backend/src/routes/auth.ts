@@ -84,7 +84,12 @@ router.get("/verify", async (req, res) => {
 
 // Logout endpoint
 router.post("/logout", (req, res) => {
-  res.clearCookie("auth-token");
+  res.clearCookie("auth-token", {
+    httpOnly: true,
+    secure: true, //process.env.NODE_ENV === 'production',
+    sameSite: "none",
+    maxAge: 0,
+  });
   res.json({ message: "Logged out successfully" });
 });
 

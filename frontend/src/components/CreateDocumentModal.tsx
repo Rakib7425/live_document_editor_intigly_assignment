@@ -203,7 +203,7 @@ export default function CreateDocumentModal() {
                 htmlFor="title"
                 className="block text-sm font-semibold text-gray-700 mb-3"
               >
-                Document Title
+                Document Title *
               </label>
               <div className="relative">
                 <input
