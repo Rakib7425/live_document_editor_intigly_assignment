@@ -42,8 +42,8 @@ const frontendAliver = async () => {
   }
 };
 
-setInterval(backendAliver, 1 * 60 * 1000); // Check every 1 minutes
-setInterval(frontendAliver, 1 * 60 * 1000); // Check every 1 minutes
+setInterval(backendAliver, 14 * 60 * 1000); // Check every 1 minutes
+setInterval(frontendAliver, 14 * 60 * 1000); // Check every 1 minutes
 
 export { backendAliver, frontendAliver };
 export default {};

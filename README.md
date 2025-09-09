@@ -34,7 +34,7 @@ docker compose up -d
 
   - `PORT=4000`
   - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/rtc_docs`
-  - `REDIS_URL=redis://localhost:6379`
+  - `REDIS_URL=redis://redisuser:redispass123@localhost:6379`
 
 - Frontend:
   - `VITE_APP_API_URL=http://localhost:4000`
@@ -218,3 +218,95 @@ yarn build
 - CORS errors: configure backend `cors` options with your frontend origin in production.
 
 ---
+
+```sql
+CREATE TABLE public.document_templates (
+id SERIAL PRIMARY KEY,
+name VARCHAR(256) NOT NULL,
+description TEXT,
+content TEXT NOT NULL DEFAULT '',
+category VARCHAR(64) DEFAULT 'General',
+is_active BOOLEAN DEFAULT true,
+created_at TIMESTAMP NOT NULL DEFAULT now(),
+updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+```
+
+```sql
+INSERT INTO document_templates
+(id, name, description, content, category, is_active, created_at, updated_at)
+VALUES
+(1, 'Blank Document', 'Start from scratch with a clean document', '', 'General', TRUE, '2025-09-07 00:14:15.132526', '2025-09-07 00:14:15.132526'),
+(2, 'Meeting Notes', 'Template for meeting minutes and action items',
+'# Meeting Notes
+
+**Date:** 7/9/2025
+**Attendees:**
+
+## Agenda
+
+## Discussion Points
+
+## Action Items
+
+## Next Steps
+', 'Business', TRUE, '2025-09-07 00:14:15.142666', '2025-09-07 00:14:15.142666'),
+(3, 'Project Plan', 'Organize project goals, timeline, and deliverables',
+'# Project Plan
+
+## Overview
+
+## Objectives
+
+## Timeline
+
+## Deliverables
+
+## Resources
+
+## Risk Assessment
+', 'Business', TRUE, '2025-09-07 00:14:15.150668', '2025-09-07 00:14:15.150668'),
+(4, 'Technical Documentation', 'Document APIs, processes, or technical specifications',
+'# Technical Documentation
+
+## Overview
+
+## Prerequisites
+
+## Installation
+
+## Usage
+
+## API Reference
+
+## Examples
+
+## Troubleshooting
+', 'Technical', TRUE, '2025-09-07 00:14:15.157536', '2025-09-07 00:14:15.157536'),
+(5, 'Task Checklist', 'Create organized to-do lists and checklists',
+'# Task Checklist
+
+## Today
+- [ ]
+- [ ]
+
+## This Week
+- [ ]
+- [ ]
+
+## Completed
+- [x] Example completed task
+', 'Productivity', TRUE, '2025-09-07 00:14:15.165619', '2025-09-07 00:14:15.165619'),
+(6, 'Creative Writing', 'Perfect for stories, articles, and creative content',
+'# Creative Writing
+
+## Inspiration
+
+## Outline
+
+## Draft
+
+## Notes
+', 'Creative', TRUE, '2025-09-07 00:14:15.172029', '2025-09-07 00:14:15.172029');
+
+```

@@ -4,7 +4,12 @@
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cat > .env << EOF
-# Database Configuration
+# Server Configuration
+PORT=4000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+
+# Local Database Configuration (for Docker)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=rtc_docs
@@ -12,7 +17,10 @@ DB_USERNAME=postgres
 DB_PASSWORD=postgres
 DB_IS_SSL=false
 
-# Redis Configuration
+
+REDIS_URL=redis://redisuser:redispass123@localhost:6379/0
+
+# Local Redis Configuration (for Docker)
 REDIS_HOSTNAME=localhost
 REDIS_PORT=6379
 REDIS_USERNAME=redisuser
@@ -20,9 +28,9 @@ REDIS_PASSWORD=redispass123
 REDIS_DB=0
 REDIS_IS_TLS=false
 
-# Server Configuration
-PORT=3001
-NODE_ENV=development
+DB_IS_SSL=false
+
+
 EOF
     echo "✅ .env file created successfully"
 else
